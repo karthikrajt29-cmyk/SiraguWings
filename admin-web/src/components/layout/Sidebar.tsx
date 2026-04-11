@@ -38,7 +38,7 @@ function NavItem({ item, active }: { item: typeof NAV_ITEMS[0]; active: boolean 
     <ListItemButton
       onClick={() => navigate(item.path)}
       sx={{
-        borderRadius: '12px',
+        borderRadius: '10px',
         mb: 0.5,
         px: 1.5,
         py: 1,
@@ -47,16 +47,18 @@ function NavItem({ item, active }: { item: typeof NAV_ITEMS[0]; active: boolean 
         overflow: 'hidden',
         transition: 'all 0.15s ease',
         bgcolor: active ? BRAND.primaryBg : 'transparent',
-        '&:hover': { bgcolor: active ? BRAND.primaryBgHover : '#F5EDE8' },
+        '&:hover': {
+          bgcolor: active ? BRAND.primaryBgHover : 'rgba(255,255,255,0.06)',
+        },
         '& .MuiListItemIcon-root': {
-          color:    active ? BRAND.primary : BRAND.textSecondary,
+          color:    active ? BRAND.primary : BRAND.navyText,
           minWidth: 36,
           transition: 'color 0.15s',
         },
         '& .MuiListItemText-primary': {
           fontSize:   14,
           fontWeight: active ? 600 : 500,
-          color:      active ? BRAND.primary : BRAND.textPrimary,
+          color:      active ? BRAND.navyTextActive : BRAND.navyText,
           transition: 'all 0.15s',
         },
       }}
@@ -84,7 +86,7 @@ export default function Sidebar() {
     : 'A';
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: BRAND.sidebarBg }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: BRAND.navyDark }}>
 
       {/* ── Brand ── */}
       <Box sx={{ px: 2.5, pt: 3, pb: 2.5 }}>
@@ -94,7 +96,7 @@ export default function Sidebar() {
             borderRadius: '11px',
             background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: `0 3px 10px rgba(229,62,0,0.35)`,
+            boxShadow: `0 3px 10px rgba(232,93,4,0.4)`,
             flexShrink: 0,
           }}>
             <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: 14, letterSpacing: -0.5 }}>
@@ -102,21 +104,22 @@ export default function Sidebar() {
             </Typography>
           </Box>
           <Box>
-            <Typography sx={{ fontWeight: 700, fontSize: 15, color: BRAND.textPrimary, lineHeight: 1.2 }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 15, color: '#FFFFFF', lineHeight: 1.2 }}>
               SiraguWings
             </Typography>
-            <Typography sx={{ fontSize: 11, color: BRAND.textSecondary, fontWeight: 500 }}>
+            <Typography sx={{ fontSize: 11, color: BRAND.navyText, fontWeight: 500 }}>
               Admin Console
             </Typography>
           </Box>
         </Box>
       </Box>
 
-      <Divider sx={{ mx: 2, borderColor: BRAND.divider }} />
+      <Divider sx={{ mx: 2, borderColor: 'rgba(255,255,255,0.08)' }} />
 
       {/* ── Section label ── */}
       <Typography sx={{
-        fontSize: 11, fontWeight: 600, color: '#C4A99A',
+        fontSize: 11, fontWeight: 600,
+        color: 'rgba(255,255,255,0.3)',
         letterSpacing: 0.8, textTransform: 'uppercase',
         px: 3, pt: 2.5, pb: 1,
       }}>
@@ -134,7 +137,7 @@ export default function Sidebar() {
 
       {/* ── Settings ── */}
       <List dense disablePadding sx={{ px: 1.5 }}>
-        <Divider sx={{ mb: 1, borderColor: BRAND.divider }} />
+        <Divider sx={{ mb: 1, borderColor: 'rgba(255,255,255,0.08)' }} />
         <NavItem
           item={{ label: 'Settings', icon: <SettingsRoundedIcon />, path: '/settings' }}
           active={location.pathname === '/settings'}
@@ -145,8 +148,8 @@ export default function Sidebar() {
       <Box sx={{
         mx: 1.5, mb: 2, mt: 1, p: 1.5,
         borderRadius: '12px',
-        bgcolor: `${BRAND.primary}0D`,
-        border: `1px solid ${BRAND.primary}18`,
+        bgcolor: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.08)',
         display: 'flex', alignItems: 'center', gap: 1.5,
       }}>
         <Avatar sx={{
@@ -157,16 +160,16 @@ export default function Sidebar() {
           {initials}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: BRAND.textPrimary }}>
+          <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>
             {profile?.name ?? 'Admin'}
           </Typography>
-          <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>
+          <Typography sx={{ fontSize: 11, color: BRAND.navyText }}>
             Administrator
           </Typography>
         </Box>
         <Tooltip title="Sign out">
           <Box onClick={logout} sx={{
-            cursor: 'pointer', color: '#C4A99A', display: 'flex', alignItems: 'center',
+            cursor: 'pointer', color: BRAND.navyText, display: 'flex', alignItems: 'center',
             flexShrink: 0, transition: 'color 0.15s',
             '&:hover': { color: BRAND.primary },
           }}>

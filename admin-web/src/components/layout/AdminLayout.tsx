@@ -18,8 +18,8 @@ export default function AdminLayout() {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
             border: 'none',
-            boxShadow: `1px 0 0 0 ${BRAND.divider}`,
-            bgcolor: BRAND.sidebarBg,
+            boxShadow: '2px 0 8px rgba(15,30,53,0.12)',
+            bgcolor: BRAND.navyDark,
           },
         }}
       >

@@ -98,12 +98,18 @@ export default function TopBar() {
 
         {/* Actions */}
         <Tooltip title="Help">
-          <IconButton size="small" sx={{ color: BRAND.textSecondary, '&:hover': { bgcolor: BRAND.primaryBg, color: BRAND.primary } }}>
+          <IconButton size="small" sx={{
+            color: BRAND.textSecondary,
+            '&:hover': { bgcolor: BRAND.primaryBg, color: BRAND.primary },
+          }}>
             <HelpOutlineRoundedIcon sx={{ fontSize: 22 }} />
           </IconButton>
         </Tooltip>
         <Tooltip title="Notifications">
-          <IconButton size="small" sx={{ color: BRAND.textSecondary, '&:hover': { bgcolor: BRAND.primaryBg, color: BRAND.primary } }}>
+          <IconButton size="small" sx={{
+            color: BRAND.textSecondary,
+            '&:hover': { bgcolor: BRAND.primaryBg, color: BRAND.primary },
+          }}>
             <NotificationsNoneRoundedIcon sx={{ fontSize: 22 }} />
           </IconButton>
         </Tooltip>

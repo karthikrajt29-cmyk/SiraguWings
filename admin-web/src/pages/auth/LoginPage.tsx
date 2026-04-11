@@ -147,7 +147,7 @@ export default function LoginPage() {
         display: { xs: 'none', md: 'flex' },
         flexDirection: 'column',
         flex: '0 0 480px',
-        background: `linear-gradient(160deg, #7A1A00 0%, ${BRAND.primary} 50%, ${BRAND.accent} 100%)`,
+        background: `linear-gradient(160deg, #081528 0%, ${BRAND.navyDark} 45%, ${BRAND.navyLight} 100%)`,
         position: 'relative',
         overflow: 'hidden',
         px: 6, py: 7,

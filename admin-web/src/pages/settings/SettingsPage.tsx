@@ -11,18 +11,23 @@ import {
   MenuItem,
   Select,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
+import SettingsRoundedIcon    from '@mui/icons-material/SettingsRounded';
+import ListAltRoundedIcon     from '@mui/icons-material/ListAltRounded';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getSettings,
   updateConfigKey,
   updateMaterialVisibility,
-  type PlatformSettings,
 } from '../../api/settings.api';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import { BRAND } from '../../theme';
+import MasterDataTab from '../../components/settings/MasterDataTab';
 
 interface EditableFieldProps {
   label: string;
@@ -62,7 +67,7 @@ function EditableField({ label, configKey, value, type = 'number', onSave, loadi
   );
 }
 
-export default function SettingsPage() {
+function PlatformSettingsTab() {
   const qc = useQueryClient();
   const { showSnack } = useSnackbar();
 
@@ -93,92 +98,115 @@ export default function SettingsPage() {
     updateMut.mutate({ key, value });
   };
 
+  if (isLoading) return <CircularProgress />;
+  if (isError) return <Alert severity="error">Failed to load settings.</Alert>;
+  if (!data) return null;
+
+  return (
+    <Card sx={{ maxWidth: 600 }}>
+      <CardContent>
+        <Stack spacing={3}>
+          <Typography variant="subtitle1">General</Typography>
+          <EditableField
+            label="Trial Period (days)"
+            configKey="TrialPeriodDays"
+            value={data.TrialPeriodDays}
+            onSave={handleSave}
+            loading={updateMut.isPending}
+          />
+          <EditableField
+            label="Fee Per Student (₹)"
+            configKey="FeePerStudent"
+            value={data.FeePerStudent}
+            onSave={handleSave}
+            loading={updateMut.isPending}
+          />
+          <EditableField
+            label="SLA Breach Hours"
+            configKey="SlaBreachHours"
+            value={data.SlaBreachHours}
+            onSave={handleSave}
+            loading={updateMut.isPending}
+          />
+          <EditableField
+            label="Data Purge Delay (days)"
+            configKey="DataPurgeDelayDays"
+            value={data.DataPurgeDelayDays}
+            onSave={handleSave}
+            loading={updateMut.isPending}
+          />
+          <EditableField
+            label="Max Students Per Center"
+            configKey="MaxStudentsPerCenter"
+            value={data.MaxStudentsPerCenter}
+            onSave={handleSave}
+            loading={updateMut.isPending}
+          />
+          <EditableField
+            label="Bulk Approve Limit"
+            configKey="BulkApproveLimit"
+            value={data.BulkApproveLimit}
+            onSave={handleSave}
+            loading={updateMut.isPending}
+          />
+
+          <Divider />
+
+          <Typography variant="subtitle1">Content</Typography>
+          <Stack direction="row" alignItems="center" gap={2}>
+            <FormControl size="small" sx={{ flex: 1, maxWidth: 240 }}>
+              <InputLabel>Material Visibility</InputLabel>
+              <Select
+                value={visibilityMode}
+                label="Material Visibility"
+                onChange={(e) => setVisibilityMode(e.target.value)}
+              >
+                <MenuItem value="AllUsers">All Users</MenuItem>
+                <MenuItem value="PaidOnly">Paid Only</MenuItem>
+                <MenuItem value="AdminOnly">Admin Only</MenuItem>
+              </Select>
+            </FormControl>
+            {visibilityMode !== data.MaterialVisibilityMode && (
+              <Button
+                size="small"
+                variant="contained"
+                disabled={visibilityMut.isPending}
+                onClick={() => visibilityMut.mutate(visibilityMode)}
+              >
+                Save
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function SettingsPage() {
+  const [tab, setTab] = useState(0);
+
   return (
     <Box>
-      <Typography variant="h5" mb={3}>Platform Settings</Typography>
+      <Typography variant="h5" mb={2.5}>Settings</Typography>
 
-      {isLoading && <CircularProgress />}
-      {isError && <Alert severity="error">Failed to load settings.</Alert>}
+      <Box sx={{ borderBottom: `1px solid ${BRAND.divider}`, mb: 3 }}>
+        <Tabs
+          value={tab}
+          onChange={(_, v) => setTab(v)}
+          sx={{
+            '& .MuiTab-root': { fontSize: 13, fontWeight: 600, textTransform: 'none', minHeight: 44, px: 2 },
+            '& .Mui-selected': { color: BRAND.primary },
+            '& .MuiTabs-indicator': { bgcolor: BRAND.primary },
+          }}
+        >
+          <Tab icon={<SettingsRoundedIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Platform Settings" />
+          <Tab icon={<ListAltRoundedIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="Master Data" />
+        </Tabs>
+      </Box>
 
-      {data && (
-        <Card sx={{ maxWidth: 600 }}>
-          <CardContent>
-            <Stack spacing={3}>
-              <Typography variant="subtitle1">General</Typography>
-              <EditableField
-                label="Trial Period (days)"
-                configKey="TrialPeriodDays"
-                value={data.TrialPeriodDays}
-                onSave={handleSave}
-                loading={updateMut.isPending}
-              />
-              <EditableField
-                label="Fee Per Student (₹)"
-                configKey="FeePerStudent"
-                value={data.FeePerStudent}
-                onSave={handleSave}
-                loading={updateMut.isPending}
-              />
-              <EditableField
-                label="SLA Breach Hours"
-                configKey="SlaBreachHours"
-                value={data.SlaBreachHours}
-                onSave={handleSave}
-                loading={updateMut.isPending}
-              />
-              <EditableField
-                label="Data Purge Delay (days)"
-                configKey="DataPurgeDelayDays"
-                value={data.DataPurgeDelayDays}
-                onSave={handleSave}
-                loading={updateMut.isPending}
-              />
-              <EditableField
-                label="Max Students Per Center"
-                configKey="MaxStudentsPerCenter"
-                value={data.MaxStudentsPerCenter}
-                onSave={handleSave}
-                loading={updateMut.isPending}
-              />
-              <EditableField
-                label="Bulk Approve Limit"
-                configKey="BulkApproveLimit"
-                value={data.BulkApproveLimit}
-                onSave={handleSave}
-                loading={updateMut.isPending}
-              />
-
-              <Divider />
-
-              <Typography variant="subtitle1">Content</Typography>
-              <Stack direction="row" alignItems="center" gap={2}>
-                <FormControl size="small" sx={{ flex: 1, maxWidth: 240 }}>
-                  <InputLabel>Material Visibility</InputLabel>
-                  <Select
-                    value={visibilityMode}
-                    label="Material Visibility"
-                    onChange={(e) => setVisibilityMode(e.target.value)}
-                  >
-                    <MenuItem value="AllUsers">All Users</MenuItem>
-                    <MenuItem value="PaidOnly">Paid Only</MenuItem>
-                    <MenuItem value="AdminOnly">Admin Only</MenuItem>
-                  </Select>
-                </FormControl>
-                {visibilityMode !== data.MaterialVisibilityMode && (
-                  <Button
-                    size="small"
-                    variant="contained"
-                    disabled={visibilityMut.isPending}
-                    onClick={() => visibilityMut.mutate(visibilityMode)}
-                  >
-                    Save
-                  </Button>
-                )}
-              </Stack>
-            </Stack>
-          </CardContent>
-        </Card>
-      )}
+      {tab === 0 && <PlatformSettingsTab />}
+      {tab === 1 && <MasterDataTab />}
     </Box>
   );
 }

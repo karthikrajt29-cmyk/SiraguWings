@@ -1,14 +1,20 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.core.exceptions import global_exception_handler
 from app.database import close_pool, get_pool
 from app.routers import auth
 from app.routers.admin import router as admin_router
+
+UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+(UPLOADS_DIR / "centers").mkdir(exist_ok=True)
 
 
 @asynccontextmanager
@@ -61,6 +67,9 @@ async def catch_unhandled_exceptions(request: Request, call_next):
 
 # Global exception handler for unhandled errors
 app.add_exception_handler(Exception, global_exception_handler)
+
+# Static uploads
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # Routers
 app.include_router(auth.router,   prefix="/auth",  tags=["Authentication"])

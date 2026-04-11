@@ -6,11 +6,7 @@ import {
   CardContent,
   CardMedia,
   Chip,
-  FormControl,
   Grid,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   Tab,
   Tabs,
@@ -149,7 +145,7 @@ export default function FeedModerationPage() {
 
       <RejectReasonModal
         open={!!rejectTarget}
-        title="Reject Feed Post"
+        mode="reject"
         onCancel={() => setRejectTarget(null)}
         onSubmit={(category, reason) =>
           rejectMut.mutate({ id: rejectTarget!.id, category, reason })

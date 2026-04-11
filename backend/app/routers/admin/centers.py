@@ -1,21 +1,29 @@
 import uuid
+import shutil
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 
 from app.core.audit import write_audit_log
 from app.database import get_db
 from app.dependencies import CurrentUser, require_admin
 from app.schemas.center import (
+    AddCenterUserRequest,
+    BatchCreateRequest,
+    BatchSummary,
     BulkApproveRequest,
     CenterApproveRequest,
+    CenterCreateRequest,
     CenterDetail,
     CenterRejectRequest,
     CenterReinstateRequest,
     CenterSummary,
     CenterSuspendRequest,
+    CenterUpdateRequest,
+    CenterUserSummary,
 )
 from app.schemas.common import PagedResponse, SuccessResponse
 from app.services.center_service import (
@@ -119,6 +127,79 @@ async def list_centers(
 
 
 # ---------------------------------------------------------------------------
+# CREATE
+# ---------------------------------------------------------------------------
+@router.post("", response_model=CenterDetail, status_code=201)
+async def create_center(
+    request: CenterCreateRequest,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> CenterDetail:
+    """Admin-initiated center creation. Starts in Submitted status."""
+    new_id = uuid.uuid4()
+    await db.execute(
+        """
+        INSERT INTO center (
+            id, name, category, owner_name, mobile_number,
+            address, city, state, pincode, description,
+            operating_days, operating_timings, age_group,
+            fee_range, facilities, social_link, website_link,
+            latitude, longitude,
+            registration_status, subscription_status,
+            created_by, created_date, modified_by, modified_date,
+            is_active, is_deleted, version_number, source_system
+        ) VALUES (
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, $9, $10,
+            $11, $12, $13,
+            $14, $15, $16, $17,
+            $18, $19,
+            'Submitted', 'Trial',
+            $20, NOW() AT TIME ZONE 'UTC', $20, NOW() AT TIME ZONE 'UTC',
+            TRUE, FALSE, 1, 'AdminPortal'
+        )
+        """,
+        new_id, request.name, request.category, request.owner_name, request.mobile_number,
+        request.address, request.city,
+        getattr(request, "state", "Tamil Nadu") or "Tamil Nadu",
+        getattr(request, "pincode", None),
+        request.description,
+        request.operating_days, request.operating_timings, request.age_group,
+        request.fee_range, request.facilities, request.social_link, request.website_link,
+        request.latitude, request.longitude,
+        admin.user_id,
+    )
+    await write_audit_log(db, admin.user_id, "Create", "Center", new_id, "{}", request.model_dump_json())
+    r = await get_center_or_404(db, new_id)
+    return CenterDetail(
+        id=r["id"], name=r["name"], category=r["category"],
+        owner_name=r["owner_name"], mobile_number=r["mobile_number"], city=r["city"],
+        state=r["state"] if "state" in r.keys() else "Tamil Nadu",
+        pincode=r["pincode"] if "pincode" in r.keys() else None,
+        registration_status=r["registration_status"],
+        subscription_status=r["subscription_status"],
+        created_date=r["created_date"], approved_at=r["approved_at"],
+        hours_since_submission=0, is_approaching_sla=False,
+        address=r["address"],
+        latitude=float(r["latitude"]) if r["latitude"] else None,
+        longitude=float(r["longitude"]) if r["longitude"] else None,
+        operating_days=r["operating_days"], operating_timings=r["operating_timings"],
+        age_group=r["age_group"], description=r["description"],
+        logo_url=r["logo_url"], cover_image_url=r["cover_image_url"],
+        fee_range=r["fee_range"], facilities=r["facilities"],
+        social_link=r["social_link"], website_link=r["website_link"],
+        rejection_reason=None, rejection_category=None, admin_notes=None,
+        registration_cert_url=r["registration_cert_url"],
+        premises_proof_url=r["premises_proof_url"],
+        owner_id_proof_url=r["owner_id_proof_url"],
+        safety_cert_url=r["safety_cert_url"],
+        trial_ends_at=r["trial_ends_at"],
+        suspended_at=r["suspended_at"],
+        data_purge_at=r["data_purge_at"],
+    )
+
+
+# ---------------------------------------------------------------------------
 # DETAIL
 # ---------------------------------------------------------------------------
 @router.get("/{center_id}", response_model=CenterDetail)
@@ -135,6 +216,8 @@ async def get_center_detail(
     return CenterDetail(
         id=r["id"], name=r["name"], category=r["category"],
         owner_name=r["owner_name"], mobile_number=r["mobile_number"], city=r["city"],
+        state=r["state"] if "state" in r.keys() else "Tamil Nadu",
+        pincode=r["pincode"] if "pincode" in r.keys() else None,
         registration_status=r["registration_status"],
         subscription_status=r["subscription_status"],
         created_date=r["created_date"], approved_at=r["approved_at"],
@@ -425,6 +508,292 @@ async def reinstate_center(
         admin_user_id=admin.user_id,
     )
     return SuccessResponse(message="Center reinstated successfully.")
+
+
+# ---------------------------------------------------------------------------
+# EDIT CENTER
+# ---------------------------------------------------------------------------
+@router.patch("/{center_id}", response_model=SuccessResponse)
+async def update_center(
+    center_id: uuid.UUID,
+    request: CenterUpdateRequest,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> SuccessResponse:
+    await get_center_or_404(db, center_id, select="id")
+
+    fields = request.model_dump(exclude_none=True)
+    if not fields:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields provided to update.")
+
+    set_clauses = ", ".join(f"{k} = ${i+1}" for i, k in enumerate(fields))
+    values = list(fields.values())
+    idx = len(values) + 1
+    values.append(admin.user_id)  # modified_by
+    values.append(center_id)      # WHERE id
+
+    await db.execute(
+        f"""
+        UPDATE center SET {set_clauses},
+            modified_by = ${idx},
+            modified_date = NOW() AT TIME ZONE 'UTC',
+            version_number = version_number + 1
+        WHERE id = ${idx + 1}
+        """,
+        *values,
+    )
+    await write_audit_log(db, admin.user_id, "Update", "Center", center_id,
+                          "{}", str(fields))
+    return SuccessResponse(message="Center updated successfully.")
+
+
+# ---------------------------------------------------------------------------
+# CENTER USERS
+# ---------------------------------------------------------------------------
+@router.get("/{center_id}/users", response_model=list[CenterUserSummary])
+async def get_center_users(
+    center_id: uuid.UUID,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> list[CenterUserSummary]:
+    await get_center_or_404(db, center_id, select="id")
+
+    rows = await db.fetch(
+        """
+        SELECT u.id AS user_id, u.name, u.email, u.mobile_number, u.status,
+               ur.role, ur.created_date AS joined_at
+        FROM user_role ur
+        JOIN "user" u ON u.id = ur.user_id
+        WHERE ur.center_id = $1
+          AND ur.is_active = TRUE
+          AND ur.is_deleted = FALSE
+          AND u.is_deleted = FALSE
+        ORDER BY ur.role, u.name
+        """,
+        center_id,
+    )
+
+    return [
+        CenterUserSummary(
+            user_id=r["user_id"], name=r["name"], email=r["email"],
+            mobile_number=r["mobile_number"], role=r["role"],
+            status=r["status"], joined_at=r["joined_at"],
+        )
+        for r in rows
+    ]
+
+
+# ---------------------------------------------------------------------------
+# ADD USER TO CENTER
+# ---------------------------------------------------------------------------
+@router.post("/{center_id}/users", response_model=SuccessResponse, status_code=201)
+async def add_center_user(
+    center_id: uuid.UUID,
+    request: AddCenterUserRequest,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> SuccessResponse:
+    """Look up a user by mobile number and link them to this center with the given role."""
+    await get_center_or_404(db, center_id, select="id")
+
+    if request.role not in ("Owner", "Teacher", "Staff"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "role must be Owner, Teacher, or Staff")
+
+    user = await db.fetchrow(
+        'SELECT id, name FROM "user" WHERE mobile_number = $1 AND is_deleted = FALSE',
+        request.mobile_number,
+    )
+    if not user:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No user found with mobile number {request.mobile_number}. "
+            "Ask the user to register first.",
+        )
+
+    existing = await db.fetchrow(
+        """SELECT id FROM user_role
+           WHERE user_id=$1 AND center_id=$2 AND role=$3
+             AND is_active=TRUE AND is_deleted=FALSE""",
+        user["id"], center_id, request.role,
+    )
+    if existing:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{user['name']} already has role '{request.role}' in this center.",
+        )
+
+    await db.execute(
+        """
+        INSERT INTO user_role (id, user_id, role, center_id, assigned_at, created_by, created_date,
+                               is_active, is_deleted, version_number, source_system)
+        VALUES (gen_random_uuid(), $1, $2, $3, NOW() AT TIME ZONE 'UTC', $4,
+                NOW() AT TIME ZONE 'UTC', TRUE, FALSE, 1, 'AdminPortal')
+        """,
+        user["id"], request.role, center_id, admin.user_id,
+    )
+    await write_audit_log(db, admin.user_id, "Create", "UserRole", center_id,
+                          "{}", f'{{"user_id":"{user["id"]}","role":"{request.role}"}}')
+    return SuccessResponse(message=f"{user['name']} added as {request.role}.")
+
+
+# ---------------------------------------------------------------------------
+# BATCHES LIST
+# ---------------------------------------------------------------------------
+@router.get("/{center_id}/batches", response_model=list[BatchSummary])
+async def list_batches(
+    center_id: uuid.UUID,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> list[BatchSummary]:
+    await get_center_or_404(db, center_id, select="id")
+
+    rows = await db.fetch(
+        """
+        SELECT b.id, b.course_name, b.batch_name, b.category_type,
+               b.class_days, b.start_time::text, b.end_time::text,
+               b.strength_limit, b.fee_amount, b.is_active,
+               b.created_date, b.teacher_id,
+               u.name AS teacher_name
+        FROM batch b
+        LEFT JOIN center_teacher ct ON ct.id = b.teacher_id AND ct.is_deleted = FALSE
+        LEFT JOIN "user" u          ON u.id  = ct.user_id
+        WHERE b.center_id = $1 AND b.is_deleted = FALSE
+        ORDER BY b.is_active DESC, b.course_name, b.batch_name
+        """,
+        center_id,
+    )
+
+    return [
+        BatchSummary(
+            id=r["id"], course_name=r["course_name"], batch_name=r["batch_name"],
+            category_type=r["category_type"], class_days=r["class_days"],
+            start_time=r["start_time"], end_time=r["end_time"],
+            strength_limit=r["strength_limit"], fee_amount=float(r["fee_amount"]),
+            is_active=r["is_active"], teacher_name=r["teacher_name"],
+            teacher_id=r["teacher_id"], created_date=r["created_date"],
+        )
+        for r in rows
+    ]
+
+
+# ---------------------------------------------------------------------------
+# CREATE BATCH
+# ---------------------------------------------------------------------------
+@router.post("/{center_id}/batches", response_model=BatchSummary, status_code=201)
+async def create_batch(
+    center_id: uuid.UUID,
+    request: BatchCreateRequest,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> BatchSummary:
+    await get_center_or_404(db, center_id, select="id")
+
+    # Validate teacher belongs to this center
+    if request.teacher_id:
+        ct = await db.fetchrow(
+            "SELECT id FROM center_teacher WHERE id=$1 AND center_id=$2 AND is_deleted=FALSE",
+            request.teacher_id, center_id,
+        )
+        if not ct:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Selected teacher does not belong to this center.",
+            )
+
+    new_id = uuid.uuid4()
+    await db.execute(
+        """
+        INSERT INTO batch (
+            id, center_id, teacher_id, course_name, batch_name, category_type,
+            class_days, start_time, end_time, strength_limit, fee_amount,
+            created_by, created_date, is_active, is_deleted, version_number, source_system
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6,
+            $7, $8::time, $9::time, $10, $11,
+            $12, NOW() AT TIME ZONE 'UTC', TRUE, FALSE, 1, 'AdminPortal'
+        )
+        """,
+        new_id, center_id, request.teacher_id,
+        request.course_name, request.batch_name, request.category_type,
+        request.class_days, request.start_time, request.end_time,
+        request.strength_limit, request.fee_amount,
+        admin.user_id,
+    )
+    await write_audit_log(db, admin.user_id, "Create", "Batch", new_id,
+                          "{}", request.model_dump_json())
+
+    r = await db.fetchrow(
+        """
+        SELECT b.id, b.course_name, b.batch_name, b.category_type,
+               b.class_days, b.start_time::text, b.end_time::text,
+               b.strength_limit, b.fee_amount, b.is_active,
+               b.created_date, b.teacher_id,
+               u.name AS teacher_name
+        FROM batch b
+        LEFT JOIN center_teacher ct ON ct.id = b.teacher_id AND ct.is_deleted = FALSE
+        LEFT JOIN "user" u          ON u.id  = ct.user_id
+        WHERE b.id = $1
+        """,
+        new_id,
+    )
+    return BatchSummary(
+        id=r["id"], course_name=r["course_name"], batch_name=r["batch_name"],
+        category_type=r["category_type"], class_days=r["class_days"],
+        start_time=r["start_time"], end_time=r["end_time"],
+        strength_limit=r["strength_limit"], fee_amount=float(r["fee_amount"]),
+        is_active=r["is_active"], teacher_name=r["teacher_name"],
+        teacher_id=r["teacher_id"], created_date=r["created_date"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# LOGO UPLOAD
+# ---------------------------------------------------------------------------
+UPLOADS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "uploads" / "centers"
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
+
+
+@router.post("/{center_id}/logo", response_model=SuccessResponse)
+async def upload_logo(
+    center_id: uuid.UUID,
+    request: Request,
+    file: UploadFile = File(...),
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> SuccessResponse:
+    await get_center_or_404(db, center_id, select="id")
+
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only JPEG, PNG, WebP or GIF images are allowed.")
+
+    contents = await file.read()
+    if len(contents) > MAX_SIZE_BYTES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Image must be under 2 MB.")
+
+    ext = Path(file.filename or "logo.jpg").suffix.lower() or ".jpg"
+    filename = f"{center_id}_{uuid.uuid4().hex[:8]}{ext}"
+    dest = UPLOADS_DIR / filename
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+    with open(dest, "wb") as f:
+        f.write(contents)
+
+    base_url = str(request.base_url).rstrip("/")
+    logo_url = f"{base_url}/uploads/centers/{filename}"
+
+    await db.execute(
+        """
+        UPDATE center SET logo_url=$1, modified_by=$2,
+            modified_date=NOW() AT TIME ZONE 'UTC', version_number=version_number+1
+        WHERE id=$3
+        """,
+        logo_url, admin.user_id, center_id,
+    )
+    await write_audit_log(db, admin.user_id, "Update", "Center", center_id,
+                          "{}", f'{{"logo_url":"{logo_url}"}}')
+
+    return SuccessResponse(message="Logo uploaded successfully.", data={"logo_url": logo_url})
 
 
 # ---------------------------------------------------------------------------

@@ -14,20 +14,30 @@ export const STATUS_COLORS = {
   verified:     '#0EA5E9',
 } as const;
 
-// Brand palette
+// Brand palette — Option C: Navy + Orange
 export const BRAND = {
-  primary:      '#E53E00',   // deep orange-red
-  primaryDark:  '#BF3600',   // darker shade
-  primaryLight: '#FF6B35',   // lighter
-  accent:       '#F5A623',   // golden amber
-  accentLight:  '#FFD166',   // pale gold
-  surface:      '#FFF9F5',   // warm cream — page bg
-  sidebarBg:    '#FFFBF8',   // sidebar
-  primaryBg:    '#FFF3EE',   // tinted bg for active nav / chips
-  primaryBgHover:'#FFE8DC',  // hover
-  textPrimary:  '#1A0A00',   // very dark brown
-  textSecondary:'#6B4C3B',   // medium brown
-  divider:      '#F3EDE8',   // warm divider
+  primary:        '#E85D04',   // vibrant orange
+  primaryDark:    '#C94B00',   // darker orange
+  primaryLight:   '#FF7C2A',   // lighter orange
+  accent:         '#F5A623',   // golden amber
+
+  // Navy sidebar palette
+  navyDark:       '#0F1E35',   // deepest navy — drawer bg
+  navyMid:        '#162840',   // slightly lighter — hover
+  navyLight:      '#1E3A5F',   // active item bg
+  navyBorder:     '#1E3A5F',   // divider inside sidebar
+  navyText:       'rgba(255,255,255,0.55)',  // inactive nav label
+  navyTextActive: '#FFFFFF',   // active nav label
+
+  // Page / surface
+  surface:        '#F8FAFC',   // cool light grey page bg
+  sidebarBg:      '#0F1E35',   // sidebar bg (matches navyDark)
+  primaryBg:      'rgba(232,93,4,0.12)',    // active nav tint
+  primaryBgHover: 'rgba(232,93,4,0.18)',   // hover tint
+
+  textPrimary:    '#0F1E35',   // near-navy for body text
+  textSecondary:  '#64748B',   // slate grey
+  divider:        '#E2E8F0',   // cool divider
 } as const;
 
 const theme = createTheme({
@@ -51,7 +61,7 @@ const theme = createTheme({
     divider: BRAND.divider,
   },
   typography: {
-    fontFamily: 'Roboto, Arial, sans-serif',
+    fontFamily: '"Inter", "Roboto", Arial, sans-serif',
     h5:       { fontWeight: 700, color: BRAND.textPrimary },
     h6:       { fontWeight: 700, color: BRAND.textPrimary },
     subtitle1:{ fontWeight: 600 },
@@ -64,7 +74,7 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow:    '0 1px 4px rgba(229,62,0,0.06)',
+          boxShadow:    '0 1px 4px rgba(15,30,53,0.06)',
           border:       `1px solid ${BRAND.divider}`,
           borderRadius: 16,
         },
@@ -75,7 +85,7 @@ const theme = createTheme({
         root: { textTransform: 'none', fontWeight: 600, borderRadius: 10 },
         contained: {
           boxShadow: 'none',
-          '&:hover': { boxShadow: '0 2px 8px rgba(229,62,0,0.3)' },
+          '&:hover': { boxShadow: '0 2px 8px rgba(232,93,4,0.3)' },
         },
       },
     },
@@ -93,7 +103,7 @@ const theme = createTheme({
           letterSpacing: 0.5,
           borderBottom: `1px solid ${BRAND.divider}`,
         },
-        body: { fontSize: 14, borderBottom: `1px solid #FBF7F4` },
+        body: { fontSize: 14, borderBottom: `1px solid #F1F5F9` },
       },
     },
     MuiDrawer: {
@@ -103,6 +113,14 @@ const theme = createTheme({
       styleOverrides: {
         root: { borderRadius: 6 },
         bar:  { borderRadius: 6 },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          boxShadow: 'none',
+          borderBottom: `1px solid ${BRAND.divider}`,
+        },
       },
     },
   },
