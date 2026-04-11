@@ -1,0 +1,57 @@
+# ── Python / Backend ──────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+*.egg
+
+# Environment & secrets — NEVER commit these
+backend/.env
+backend/.env.*
+backend/firebase-credentials.json
+*.pem
+*.key
+
+# ── Node / Frontend ───────────────────────────────
+node_modules/
+admin-web/node_modules/
+admin-web/dist/
+admin-web/.env
+admin-web/.env.*
+admin-web/.env.local
+.parcel-cache/
+.cache/
+
+# ── IDEs ─────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ───────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# ── Logs & temp ──────────────────────────────────
+*.log
+logs/
+*.tmp
+*.temp
+
+# ── Database dumps ───────────────────────────────
+*.sql.bak
+*.dump
