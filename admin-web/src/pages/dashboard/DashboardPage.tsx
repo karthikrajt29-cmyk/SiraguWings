@@ -1,427 +1,353 @@
 import { useNavigate } from 'react-router-dom';
+import { BRAND, STATUS_COLORS } from '../../theme';
 import {
-  Alert,
-  Avatar,
   Box,
-  Button,
   Card,
   CardContent,
   Chip,
   Grid,
-  IconButton,
   LinearProgress,
   Skeleton,
   Stack,
-  Tooltip,
   Typography,
+  Avatar,
+  ButtonBase,
+  Alert,
+  Divider,
+  Tooltip,
 } from '@mui/material';
 import {
-  TrendingUp as TrendingUpIcon,
-  Business as BusinessIcon,
-  People as PeopleIcon,
-  Receipt as ReceiptIcon,
-  Article as ArticleIcon,
-  ArrowForward as ArrowForwardIcon,
-  AccessTime as AccessTimeIcon,
-  CheckCircleOutline as CheckCircleIcon,
-  WarningAmber as WarningIcon,
-  Block as BlockIcon,
-  PendingActions as PendingIcon,
-  OpenInNew as OpenInNewIcon,
-  CallMerge as MergeIcon,
-  LinkOff as UnlinkIcon,
+  BusinessRounded as CenterIcon,
+  CheckCircleRounded as ApprovedIcon,
+  WarningAmberRounded as WarningIcon,
+  BlockRounded as BlockIcon,
+  TrendingUpRounded as RevenueIcon,
+  ArticleRounded as ContentIcon,
+  MergeRounded as MergeIcon,
+  LinkOffRounded as UnlinkIcon,
+  ReceiptRounded as ReceiptIcon,
+  PendingActionsRounded as PendingIcon,
+  AccessTimeRounded as ClockIcon,
+  ChevronRightRounded as ChevronIcon,
+  PeopleRounded as PeopleIcon,
+  SpaceDashboardRounded as DashIcon,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { getCenters } from '../../api/centers.api';
 import { getBillingDashboard } from '../../api/billing.api';
-import { getUsers } from '../../api/users.api';
 import { getFeedPosts } from '../../api/content.api';
 import { getDuplicates } from '../../api/students.api';
 import { getUnlinkRequests } from '../../api/users.api';
-import { STATUS_COLORS } from '../../theme';
 
-/* ─── helpers ─── */
-function formatCurrency(n: number) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(n);
-}
+/* ── helpers ── */
+const fmt = (n: number) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-/* ─── Stat Card ─── */
-interface StatCardProps {
-  label: string;
-  value: number | string;
-  icon: React.ReactNode;
-  color: string;
-  subtitle?: string;
-  loading?: boolean;
-  onClick?: () => void;
-}
-
-function StatCard({ label, value, icon, color, subtitle, loading, onClick }: StatCardProps) {
+/* ─────────────────────────────────────────────────
+   KPI CARD
+───────────────────────────────────────────────── */
+function KpiCard({
+  label, value, sub, icon, color, loading, onClick,
+}: {
+  label: string; value: string | number; sub?: string;
+  icon: React.ReactNode; color: string;
+  loading?: boolean; onClick?: () => void;
+}) {
   return (
-    <Card
-      sx={{
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'all 0.2s',
-        '&:hover': onClick
-          ? { transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }
-          : {},
-      }}
+    <ButtonBase
       onClick={onClick}
+      disabled={!onClick}
+      sx={{ display: 'block', width: '100%', textAlign: 'left', borderRadius: '16px' }}
     >
-      <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-          <Box flex={1}>
-            <Typography variant="body2" color="text.secondary" fontWeight={500} gutterBottom>
-              {label}
-            </Typography>
-            {loading ? (
-              <Skeleton width={60} height={36} />
-            ) : (
-              <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+      <Card sx={{
+        borderRadius: '16px',
+        transition: 'all 0.18s ease',
+        '&:hover': onClick ? { boxShadow: '0 4px 20px rgba(229,62,0,0.12)', transform: 'translateY(-2px)' } : {},
+      }}>
+        <CardContent sx={{ p: '20px !important' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Avatar sx={{ width: 44, height: 44, bgcolor: color + '15', color, borderRadius: '12px' }}>
+              {icon}
+            </Avatar>
+            {onClick && <ChevronIcon sx={{ color: '#C4A99A', fontSize: 20, mt: 0.5 }} />}
+          </Box>
+          {loading ? (
+            <>
+              <Skeleton width="50%" height={32} sx={{ mb: 0.5 }} />
+              <Skeleton width="70%" height={18} />
+            </>
+          ) : (
+            <>
+              <Typography sx={{ fontSize: 28, fontWeight: 800, color: BRAND.textPrimary, lineHeight: 1.1, mb: 0.5 }}>
                 {value}
               </Typography>
-            )}
-            {subtitle && !loading && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                {subtitle}
+              <Typography sx={{ fontSize: 13, fontWeight: 500, color: BRAND.textSecondary }}>
+                {label}
               </Typography>
-            )}
-          </Box>
-          <Avatar
-            sx={{
-              width: 44,
-              height: 44,
-              bgcolor: color + '18',
-              color,
-            }}
-          >
-            {icon}
-          </Avatar>
+              {sub && (
+                <Typography sx={{ fontSize: 12, color, fontWeight: 500, mt: 0.5 }}>
+                  {sub}
+                </Typography>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </ButtonBase>
+  );
+}
+
+/* ─────────────────────────────────────────────────
+   SECTION WRAPPER
+───────────────────────────────────────────────── */
+function Section({
+  title, badge, action, onAction, children,
+}: {
+  title: string; badge?: number; action?: string;
+  onAction?: () => void; children: React.ReactNode;
+}) {
+  return (
+    <Card sx={{ borderRadius: '16px' }}>
+      <CardContent sx={{ p: '0 !important' }}>
+        <Box sx={{
+          display: 'flex', alignItems: 'center',
+          px: 3, py: 2.5,
+          borderBottom: `1px solid ${BRAND.divider}`,
+        }}>
+          <Typography sx={{ fontWeight: 700, fontSize: 15, color: BRAND.textPrimary, flex: 1 }}>
+            {title}
+          </Typography>
+          {badge !== undefined && badge > 0 && (
+            <Chip
+              label={badge}
+              size="small"
+              sx={{ bgcolor: BRAND.primaryBg, color: BRAND.primary, fontWeight: 700, fontSize: 12, height: 22, mr: 1.5 }}
+            />
+          )}
+          {action && onAction && (
+            <ButtonBase onClick={onAction} sx={{ borderRadius: '8px', px: 1.5, py: 0.5 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND.primary }}>
+                {action}
+              </Typography>
+            </ButtonBase>
+          )}
         </Box>
+        {children}
       </CardContent>
     </Card>
   );
 }
 
-/* ─── Section Header ─── */
-function SectionHeader({
-  title,
-  action,
-  onAction,
+/* ─────────────────────────────────────────────────
+   QUEUE ROW
+───────────────────────────────────────────────── */
+function QueueRow({
+  name, category, status, hours, onClick,
 }: {
-  title: string;
-  action?: string;
-  onAction?: () => void;
+  name: string; category: string; status: string; hours: number; onClick: () => void;
 }) {
+  const urgent = hours >= 20;
   return (
-    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-      <Typography variant="h6" fontWeight={600}>
-        {title}
-      </Typography>
-      {action && onAction && (
-        <Button
-          size="small"
-          endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
-          onClick={onAction}
-          sx={{ textTransform: 'none', fontWeight: 500, fontSize: 13 }}
-        >
-          {action}
-        </Button>
-      )}
-    </Box>
-  );
-}
-
-/* ─── Center Row ─── */
-function CenterRow({
-  name,
-  category,
-  status,
-  hours,
-  onClick,
-}: {
-  name: string;
-  category: string;
-  status: string;
-  hours: number;
-  onClick: () => void;
-}) {
-  const isUrgent = hours >= 20;
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        py: 1.5,
-        px: 2,
-        borderRadius: 2,
-        cursor: 'pointer',
-        transition: 'background 0.15s',
-        '&:hover': { bgcolor: '#F5F7FA' },
-        '&:not(:last-child)': { borderBottom: '1px solid #F3F4F6' },
-      }}
+    <ButtonBase
       onClick={onClick}
+      sx={{
+        display: 'flex', width: '100%', textAlign: 'left',
+        alignItems: 'center', gap: 2,
+        px: 3, py: 1.75,
+        transition: 'background 0.12s',
+        '&:hover': { bgcolor: BRAND.surface },
+        '&:not(:last-child)': { borderBottom: `1px solid ${BRAND.divider}` },
+      }}
     >
-      <Avatar
-        sx={{
-          width: 36,
-          height: 36,
-          bgcolor: isUrgent ? STATUS_COLORS.slaWarning + '18' : '#EEF2FF',
-          color: isUrgent ? STATUS_COLORS.slaWarning : '#4F46E5',
-          fontSize: 14,
-          fontWeight: 600,
-        }}
-      >
+      <Avatar sx={{
+        width: 38, height: 38,
+        bgcolor: urgent ? '#FEF3C7' : BRAND.primaryBg,
+        color:  urgent ? '#D97706' : BRAND.primary,
+        fontWeight: 700, fontSize: 15,
+        borderRadius: '10px', flexShrink: 0,
+      }}>
         {name.charAt(0)}
       </Avatar>
-      <Box flex={1} minWidth={0}>
-        <Typography variant="body2" fontWeight={600} noWrap>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontSize: 14, fontWeight: 600, color: BRAND.textPrimary }} noWrap>
           {name}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>
           {category}
         </Typography>
       </Box>
-      <Stack direction="row" spacing={1} alignItems="center">
-        {isUrgent && (
-          <Tooltip title={`${Math.round(hours)}h since submission — SLA at risk`}>
+      <Stack direction="row" spacing={1} alignItems="center" flexShrink={0}>
+        {urgent && (
+          <Tooltip title="SLA at risk">
             <Chip
-              icon={<AccessTimeIcon sx={{ fontSize: 14 }} />}
+              icon={<ClockIcon sx={{ fontSize: '14px !important' }} />}
               label={`${Math.round(hours)}h`}
               size="small"
               sx={{
-                bgcolor: STATUS_COLORS.slaWarning + '18',
-                color: STATUS_COLORS.slaWarning,
-                fontWeight: 600,
-                fontSize: 12,
-                height: 24,
+                bgcolor: '#FEF3C7', color: '#D97706',
+                fontWeight: 600, fontSize: 11, height: 22,
+                '& .MuiChip-icon': { color: '#D97706' },
               }}
             />
           </Tooltip>
         )}
         <Chip
-          label={status}
+          label={status === 'UnderReview' ? 'In Review' : 'Pending'}
           size="small"
           sx={{
-            bgcolor:
-              status === 'Submitted'
-                ? STATUS_COLORS.pending + '22'
-                : STATUS_COLORS.underReview + '18',
-            color:
-              status === 'Submitted' ? '#92400E' : STATUS_COLORS.underReview,
-            fontWeight: 500,
-            fontSize: 12,
-            height: 24,
+            bgcolor: status === 'UnderReview' ? '#EFF6FF' : `${BRAND.primary}12`,
+            color:   status === 'UnderReview' ? '#3B82F6' : BRAND.primary,
+            fontWeight: 600, fontSize: 11, height: 22,
           }}
         />
-        <IconButton size="small" sx={{ color: '#9CA3AF' }}>
-          <OpenInNewIcon sx={{ fontSize: 16 }} />
-        </IconButton>
+        <ChevronIcon sx={{ color: '#C4A99A', fontSize: 18 }} />
       </Stack>
-    </Box>
+    </ButtonBase>
   );
 }
 
-/* ─── Quick Action Button ─── */
-function QuickAction({
-  icon,
-  label,
-  count,
-  color,
-  onClick,
+/* ─────────────────────────────────────────────────
+   ACTION ROW
+───────────────────────────────────────────────── */
+function ActionRow({
+  icon, label, count, color, onClick,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  count?: number;
-  color: string;
-  onClick: () => void;
+  icon: React.ReactNode; label: string;
+  count?: number; color: string; onClick: () => void;
 }) {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        py: 1.5,
-        px: 2,
-        borderRadius: 2,
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-        '&:hover': { bgcolor: color + '08' },
-        '&:not(:last-child)': { borderBottom: '1px solid #F3F4F6' },
-      }}
+    <ButtonBase
       onClick={onClick}
+      sx={{
+        display: 'flex', width: '100%', textAlign: 'left',
+        alignItems: 'center', gap: 2,
+        px: 3, py: 1.75,
+        transition: 'background 0.12s',
+        '&:hover': { bgcolor: BRAND.surface },
+        '&:not(:last-child)': { borderBottom: `1px solid ${BRAND.divider}` },
+      }}
     >
-      <Avatar sx={{ width: 32, height: 32, bgcolor: color + '15', color }}>
+      <Avatar sx={{ width: 34, height: 34, bgcolor: color + '12', color, borderRadius: '10px', flexShrink: 0 }}>
         {icon}
       </Avatar>
-      <Typography variant="body2" fontWeight={500} flex={1}>
+      <Typography sx={{ flex: 1, fontSize: 14, fontWeight: 500, color: BRAND.textPrimary }}>
         {label}
       </Typography>
       {count !== undefined && count > 0 && (
         <Chip
           label={count}
           size="small"
-          sx={{
-            bgcolor: color + '18',
-            color,
-            fontWeight: 700,
-            fontSize: 12,
-            height: 22,
-            minWidth: 28,
-          }}
+          sx={{ bgcolor: color + '18', color, fontWeight: 700, fontSize: 12, height: 22, minWidth: 28 }}
         />
       )}
-      <ArrowForwardIcon sx={{ fontSize: 16, color: '#D1D5DB' }} />
-    </Box>
+      <ChevronIcon sx={{ color: '#C4A99A', fontSize: 18, flexShrink: 0 }} />
+    </ButtonBase>
   );
 }
 
-/* ═══════════════════════════════════════════
-   MAIN DASHBOARD
-   ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   PAGE
+═══════════════════════════════════════════════ */
 export default function DashboardPage() {
   const navigate = useNavigate();
 
-  // ── data queries ──
-  const submitted = useQuery({
-    queryKey: ['dash', 'centers', 'Submitted'],
-    queryFn: () => getCenters({ status: 'Submitted', page: 0, size: 5 }),
-  });
-  const underReview = useQuery({
-    queryKey: ['dash', 'centers', 'UnderReview'],
-    queryFn: () => getCenters({ status: 'UnderReview', page: 0, size: 5 }),
-  });
-  const approved = useQuery({
-    queryKey: ['dash', 'centers', 'Approved'],
-    queryFn: () => getCenters({ status: 'Approved', page: 0, size: 1 }),
-  });
-  const suspended = useQuery({
-    queryKey: ['dash', 'centers', 'Suspended'],
-    queryFn: () => getCenters({ status: 'Suspended', page: 0, size: 1 }),
-  });
-  const billing = useQuery({
-    queryKey: ['dash', 'billing'],
-    queryFn: getBillingDashboard,
-    retry: 1,
-  });
-  const pendingPosts = useQuery({
-    queryKey: ['dash', 'content', 'Pending'],
-    queryFn: () => getFeedPosts({ status: 'Pending', page: 0, size: 1 }),
-    retry: 1,
-  });
-  const duplicates = useQuery({
-    queryKey: ['dash', 'duplicates'],
-    queryFn: () => getDuplicates({ page: 0, size: 1 }),
-    retry: 1,
-  });
-  const unlinkReqs = useQuery({
-    queryKey: ['dash', 'unlinks'],
-    queryFn: () => getUnlinkRequests({ page: 0, size: 1 }),
-    retry: 1,
-  });
+  const submitted = useQuery({ queryKey: ['dash','sub'],  queryFn: () => getCenters({ status: 'Submitted',   page: 0, size: 5 }) });
+  const inReview  = useQuery({ queryKey: ['dash','rev'],  queryFn: () => getCenters({ status: 'UnderReview', page: 0, size: 5 }) });
+  const approved  = useQuery({ queryKey: ['dash','app'],  queryFn: () => getCenters({ status: 'Approved',    page: 0, size: 1 }) });
+  const suspended = useQuery({ queryKey: ['dash','sus'],  queryFn: () => getCenters({ status: 'Suspended',   page: 0, size: 1 }) });
+  const billing   = useQuery({ queryKey: ['dash','bill'], queryFn: getBillingDashboard, retry: 1 });
+  const posts     = useQuery({ queryKey: ['dash','post'], queryFn: () => getFeedPosts({ status: 'Pending', page: 0, size: 1 }), retry: 1 });
+  const dupes     = useQuery({ queryKey: ['dash','dup'],  queryFn: () => getDuplicates({ page: 0, size: 1 }), retry: 1 });
+  const unlinks   = useQuery({ queryKey: ['dash','unl'],  queryFn: () => getUnlinkRequests({ page: 0, size: 1 }), retry: 1 });
 
-  // ── derived values ──
-  const pendingCount = submitted.data?.total ?? 0;
-  const reviewCount = underReview.data?.total ?? 0;
-  const approvedCount = approved.data?.total ?? 0;
-  const suspendedCount = suspended.data?.total ?? 0;
-  const queueTotal = pendingCount + reviewCount;
+  const pendingCnt   = submitted.data?.total  ?? 0;
+  const reviewCnt    = inReview.data?.total   ?? 0;
+  const approvedCnt  = approved.data?.total   ?? 0;
+  const suspendedCnt = suspended.data?.total  ?? 0;
+  const queueTotal   = pendingCnt + reviewCnt;
+  const statsLoading = submitted.isLoading || inReview.isLoading || approved.isLoading || suspended.isLoading;
 
-  // merge submitted + under-review into a single queue list
   const queueItems = [
-    ...(submitted.data?.items ?? []).map((i) => ({ ...i, _status: 'Submitted' as const })),
-    ...(underReview.data?.items ?? []).map((i) => ({ ...i, _status: 'UnderReview' as const })),
+    ...(submitted.data?.items ?? []).map((i) => ({ ...i, _s: 'Submitted'  as const })),
+    ...(inReview.data?.items  ?? []).map((i) => ({ ...i, _s: 'UnderReview' as const })),
   ].sort((a, b) => (b.hours_since_submission ?? 0) - (a.hours_since_submission ?? 0));
 
-  const statsLoading = submitted.isLoading || underReview.isLoading || approved.isLoading || suspended.isLoading;
+  const hasSlaBreached = queueItems.some((c) => (c.hours_since_submission ?? 0) >= 24);
 
   return (
     <Box>
-      {/* ── Page header ── */}
-      <Box mb={3}>
-        <Typography variant="h5" fontWeight={700}>
-          Dashboard
-        </Typography>
-        <Typography variant="body2" color="text.secondary" mt={0.5}>
-          Overview of your platform at a glance
-        </Typography>
+      {/* ── Header ── */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <Avatar sx={{ width: 40, height: 40, bgcolor: BRAND.primaryBg, color: BRAND.primary, borderRadius: '12px' }}>
+          <DashIcon />
+        </Avatar>
+        <Box>
+          <Typography sx={{ fontSize: 20, fontWeight: 800, color: BRAND.textPrimary, lineHeight: 1.2 }}>
+            Dashboard
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: BRAND.textSecondary }}>
+            Platform overview
+          </Typography>
+        </Box>
       </Box>
 
-      {/* ── SLA Warning banner ── */}
-      {queueItems.some((c) => (c.hours_since_submission ?? 0) >= 24) && (
+      {/* ── SLA breach alert ── */}
+      {hasSlaBreached && (
         <Alert
           severity="warning"
           icon={<WarningIcon />}
-          sx={{ mb: 3, borderRadius: 2 }}
+          sx={{ mb: 3, borderRadius: '12px', fontSize: 13 }}
           action={
-            <Button
-              size="small"
-              color="warning"
+            <ButtonBase
               onClick={() => navigate('/centers')}
-              sx={{ fontWeight: 600 }}
+              sx={{ borderRadius: '8px', px: 1.5, py: 0.75, bgcolor: 'rgba(0,0,0,0.06)' }}
             >
-              Review Now
-            </Button>
+              <Typography sx={{ fontSize: 13, fontWeight: 600 }}>Review now</Typography>
+            </ButtonBase>
           }
         >
-          <strong>SLA Breach:</strong> One or more center applications have exceeded the 24-hour review window.
+          <strong>SLA breach:</strong> One or more applications exceeded the 24-hour review window.
         </Alert>
       )}
 
-      {/* ── Stat Cards Row ── */}
-      <Grid container spacing={2.5} mb={3.5}>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
+      {/* ── KPI cards ── */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} xl={3}>
+          <KpiCard
             label="Pending Review"
             value={queueTotal}
+            sub={reviewCnt > 0 ? `${reviewCnt} in review` : undefined}
             icon={<PendingIcon sx={{ fontSize: 22 }} />}
-            color={STATUS_COLORS.pending}
-            subtitle={reviewCount > 0 ? `${reviewCount} under review` : undefined}
+            color={BRAND.primary}
             loading={statsLoading}
             onClick={() => navigate('/centers')}
           />
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
+        <Grid item xs={12} sm={6} xl={3}>
+          <KpiCard
             label="Active Centers"
-            value={approvedCount}
-            icon={<CheckCircleIcon sx={{ fontSize: 22 }} />}
+            value={approvedCnt}
+            icon={<ApprovedIcon sx={{ fontSize: 22 }} />}
             color={STATUS_COLORS.approved}
             loading={statsLoading}
             onClick={() => navigate('/centers')}
           />
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
+        <Grid item xs={12} sm={6} xl={3}>
+          <KpiCard
             label="Monthly Revenue"
-            value={billing.data ? formatCurrency(billing.data.mrr) : '--'}
-            icon={<TrendingUpIcon sx={{ fontSize: 22 }} />}
-            color="#4F46E5"
-            subtitle={billing.data ? `${billing.data.billed_students} students` : undefined}
+            value={billing.data ? fmt(billing.data.mrr) : '—'}
+            sub={billing.data ? `${billing.data.billed_students} students billed` : undefined}
+            icon={<RevenueIcon sx={{ fontSize: 22 }} />}
+            color={BRAND.accent}
             loading={billing.isLoading}
             onClick={() => navigate('/billing')}
           />
         </Grid>
-        <Grid item xs={12} sm={6} lg={3}>
-          <StatCard
+        <Grid item xs={12} sm={6} xl={3}>
+          <KpiCard
             label="Suspended"
-            value={suspendedCount}
+            value={suspendedCnt}
             icon={<BlockIcon sx={{ fontSize: 22 }} />}
             color={STATUS_COLORS.suspended}
             loading={statsLoading}
@@ -430,239 +356,179 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      {/* ── Main content grid ── */}
+      {/* ── Body grid ── */}
       <Grid container spacing={2.5}>
-        {/* ── Left column: Approval Queue ── */}
-        <Grid item xs={12} lg={8}>
-          <Card>
-            <CardContent sx={{ p: 0 }}>
-              <Box px={2.5} pt={2.5} pb={1}>
-                <SectionHeader
-                  title="Approval Queue"
-                  action={`View all (${queueTotal})`}
-                  onAction={() => navigate('/centers')}
-                />
-                {queueTotal > 0 && (
-                  <Box mb={2}>
-                    <Box display="flex" justifyContent="space-between" mb={0.5}>
-                      <Typography variant="caption" color="text.secondary">
-                        {pendingCount} pending &middot; {reviewCount} in review
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {queueTotal} total
-                      </Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={queueTotal > 0 ? (reviewCount / queueTotal) * 100 : 0}
-                      sx={{
-                        height: 6,
-                        borderRadius: 3,
-                        bgcolor: STATUS_COLORS.pending + '30',
-                        '& .MuiLinearProgress-bar': {
-                          bgcolor: STATUS_COLORS.underReview,
-                          borderRadius: 3,
-                        },
-                      }}
-                    />
-                  </Box>
-                )}
-              </Box>
 
-              {submitted.isLoading || underReview.isLoading ? (
-                <Box px={2.5} pb={2}>
-                  {[1, 2, 3].map((i) => (
-                    <Box key={i} display="flex" alignItems="center" gap={2} py={1.5} px={2}>
-                      <Skeleton variant="circular" width={36} height={36} />
-                      <Box flex={1}>
-                        <Skeleton width="60%" height={20} />
-                        <Skeleton width="30%" height={16} />
-                      </Box>
-                      <Skeleton width={70} height={24} sx={{ borderRadius: 1 }} />
-                    </Box>
-                  ))}
-                </Box>
-              ) : queueItems.length === 0 ? (
-                <Box textAlign="center" py={5} px={2}>
-                  <CheckCircleIcon sx={{ fontSize: 40, color: STATUS_COLORS.approved, mb: 1 }} />
-                  <Typography variant="body2" color="text.secondary">
-                    All caught up! No centers waiting for review.
+        {/* LEFT: approval queue */}
+        <Grid item xs={12} lg={8}>
+          <Section title="Approval Queue" badge={queueTotal} action="View all" onAction={() => navigate('/centers')}>
+            {queueTotal > 0 && (
+              <Box sx={{ px: 3, pt: 2, pb: 1.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
+                  <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>
+                    {pendingCnt} pending &middot; {reviewCnt} in review
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>
+                    {queueTotal} total
                   </Typography>
                 </Box>
-              ) : (
-                <Box pb={1}>
-                  {queueItems.slice(0, 5).map((c) => (
-                    <CenterRow
-                      key={c.id}
-                      name={c.name}
-                      category={c.category}
-                      status={c._status}
-                      hours={c.hours_since_submission ?? 0}
-                      onClick={() => navigate(`/centers/${c.id}`)}
-                    />
-                  ))}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+                <LinearProgress
+                  variant="determinate"
+                  value={queueTotal ? (reviewCnt / queueTotal) * 100 : 0}
+                  sx={{
+                    height: 6, borderRadius: 3,
+                    bgcolor: `${BRAND.primary}18`,
+                    '& .MuiLinearProgress-bar': { bgcolor: BRAND.accent, borderRadius: 3 },
+                  }}
+                />
+              </Box>
+            )}
 
-          {/* ── Billing summary row (below queue) ── */}
+            {submitted.isLoading || inReview.isLoading ? (
+              <Box sx={{ px: 3, pb: 2, pt: 1 }}>
+                {[1, 2, 3].map((i) => (
+                  <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5 }}>
+                    <Skeleton variant="rounded" width={38} height={38} sx={{ borderRadius: '10px' }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Skeleton width="55%" height={18} />
+                      <Skeleton width="30%" height={14} sx={{ mt: 0.5 }} />
+                    </Box>
+                    <Skeleton width={72} height={22} sx={{ borderRadius: 1 }} />
+                  </Box>
+                ))}
+              </Box>
+            ) : queueItems.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <ApprovedIcon sx={{ fontSize: 44, color: STATUS_COLORS.approved, mb: 1 }} />
+                <Typography sx={{ color: BRAND.textSecondary, fontSize: 14 }}>
+                  All caught up — no pending applications.
+                </Typography>
+              </Box>
+            ) : (
+              <Box>
+                {queueItems.slice(0, 6).map((c) => (
+                  <QueueRow
+                    key={c.id}
+                    name={c.name}
+                    category={c.category}
+                    status={c._s}
+                    hours={c.hours_since_submission ?? 0}
+                    onClick={() => navigate(`/centers/${c.id}`)}
+                  />
+                ))}
+              </Box>
+            )}
+          </Section>
+
+          {/* Billing snapshot */}
           {billing.data && (
-            <Card sx={{ mt: 2.5 }}>
-              <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-                <SectionHeader title="Billing Snapshot" action="Details" onAction={() => navigate('/billing')} />
-                <Grid container spacing={2}>
-                  <Grid item xs={6} sm={3}>
-                    <Typography variant="caption" color="text.secondary">
-                      MRR
-                    </Typography>
-                    <Typography variant="h6" fontWeight={700}>
-                      {formatCurrency(billing.data.mrr)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Typography variant="caption" color="text.secondary">
-                      Outstanding
-                    </Typography>
-                    <Typography variant="h6" fontWeight={700} color={billing.data.outstanding_amount > 0 ? 'warning.main' : 'text.primary'}>
-                      {formatCurrency(billing.data.outstanding_amount)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Typography variant="caption" color="text.secondary">
-                      Overdue
-                    </Typography>
-                    <Typography variant="h6" fontWeight={700} color={billing.data.overdue_amount > 0 ? 'error.main' : 'text.primary'}>
-                      {formatCurrency(billing.data.overdue_amount)}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6} sm={3}>
-                    <Typography variant="caption" color="text.secondary">
-                      Billed Students
-                    </Typography>
-                    <Typography variant="h6" fontWeight={700}>
-                      {billing.data.billed_students}
-                    </Typography>
-                  </Grid>
+            <Card sx={{ mt: 2.5, borderRadius: '16px' }}>
+              <CardContent sx={{ p: '0 !important' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', px: 3, py: 2.5, borderBottom: `1px solid ${BRAND.divider}` }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: 15, color: BRAND.textPrimary, flex: 1 }}>
+                    Billing Snapshot
+                  </Typography>
+                  <ButtonBase onClick={() => navigate('/billing')} sx={{ borderRadius: '8px', px: 1.5, py: 0.5 }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND.primary }}>Details</Typography>
+                  </ButtonBase>
+                </Box>
+                <Grid container sx={{ px: 3, py: 2.5 }}>
+                  {[
+                    { label: 'MRR',             val: fmt(billing.data.mrr),                color: BRAND.primary },
+                    { label: 'Outstanding',     val: fmt(billing.data.outstanding_amount),  color: billing.data.outstanding_amount > 0 ? '#D97706' : BRAND.textPrimary },
+                    { label: 'Overdue',         val: fmt(billing.data.overdue_amount),      color: billing.data.overdue_amount > 0 ? '#DC2626' : BRAND.textPrimary },
+                    { label: 'Billed Students', val: billing.data.billed_students,          color: BRAND.textPrimary },
+                  ].map((item, i) => (
+                    <Grid key={i} item xs={6} sm={3}>
+                      <Box sx={{ pr: 2 }}>
+                        <Typography sx={{ fontSize: 11, color: BRAND.textSecondary, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                          {item.label}
+                        </Typography>
+                        <Typography sx={{ fontSize: 20, fontWeight: 800, color: item.color }}>
+                          {item.val}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
                 </Grid>
               </CardContent>
             </Card>
           )}
         </Grid>
 
-        {/* ── Right column: Quick Actions + info ── */}
+        {/* RIGHT */}
         <Grid item xs={12} lg={4}>
-          <Card>
-            <CardContent sx={{ p: 0 }}>
-              <Box px={2.5} pt={2.5} pb={1}>
-                <Typography variant="h6" fontWeight={600} mb={1.5}>
-                  Needs Attention
+          <Section title="Needs Attention">
+            <ActionRow
+              icon={<CenterIcon sx={{ fontSize: 18 }} />}
+              label="Center Applications"
+              count={queueTotal}
+              color={BRAND.primary}
+              onClick={() => navigate('/centers')}
+            />
+            <ActionRow
+              icon={<ContentIcon sx={{ fontSize: 18 }} />}
+              label="Posts to Moderate"
+              count={posts.data?.total}
+              color={STATUS_COLORS.underReview}
+              onClick={() => navigate('/content')}
+            />
+            <ActionRow
+              icon={<MergeIcon sx={{ fontSize: 18 }} />}
+              label="Duplicate Students"
+              count={dupes.data?.total}
+              color={BRAND.accent}
+              onClick={() => navigate('/students')}
+            />
+            <ActionRow
+              icon={<UnlinkIcon sx={{ fontSize: 18 }} />}
+              label="Unlink Requests"
+              count={unlinks.data?.total}
+              color={STATUS_COLORS.suspended}
+              onClick={() => navigate('/unlink-requests')}
+            />
+            {billing.data && billing.data.overdue_amount > 0 && (
+              <ActionRow
+                icon={<ReceiptIcon sx={{ fontSize: 18 }} />}
+                label="Overdue Invoices"
+                color={STATUS_COLORS.rejected}
+                onClick={() => navigate('/billing/invoices')}
+              />
+            )}
+          </Section>
+
+          {/* Platform stats */}
+          <Card sx={{ mt: 2.5, borderRadius: '16px' }}>
+            <CardContent sx={{ p: '0 !important' }}>
+              <Box sx={{ px: 3, py: 2.5, borderBottom: `1px solid ${BRAND.divider}` }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 15, color: BRAND.textPrimary }}>
+                  Platform Stats
                 </Typography>
               </Box>
-              <Box pb={1}>
-                <QuickAction
-                  icon={<BusinessIcon sx={{ fontSize: 18 }} />}
-                  label="Center Applications"
-                  count={queueTotal}
-                  color={STATUS_COLORS.pending}
-                  onClick={() => navigate('/centers')}
-                />
-                <QuickAction
-                  icon={<ArticleIcon sx={{ fontSize: 18 }} />}
-                  label="Posts to Moderate"
-                  count={pendingPosts.data?.total}
-                  color={STATUS_COLORS.underReview}
-                  onClick={() => navigate('/content')}
-                />
-                <QuickAction
-                  icon={<MergeIcon sx={{ fontSize: 18 }} />}
-                  label="Duplicate Students"
-                  count={duplicates.data?.total}
-                  color={STATUS_COLORS.slaWarning}
-                  onClick={() => navigate('/students')}
-                />
-                <QuickAction
-                  icon={<UnlinkIcon sx={{ fontSize: 18 }} />}
-                  label="Unlink Requests"
-                  count={unlinkReqs.data?.total}
-                  color={STATUS_COLORS.suspended}
-                  onClick={() => navigate('/unlink-requests')}
-                />
-                {billing.data && billing.data.overdue_amount > 0 && (
-                  <QuickAction
-                    icon={<ReceiptIcon sx={{ fontSize: 18 }} />}
-                    label="Overdue Invoices"
-                    count={undefined}
-                    color={STATUS_COLORS.rejected}
-                    onClick={() => navigate('/billing/invoices')}
-                  />
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* ── Platform Stats ── */}
-          <Card sx={{ mt: 2.5 }}>
-            <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-              <Typography variant="h6" fontWeight={600} mb={2}>
-                Platform Stats
-              </Typography>
-              <Stack spacing={2}>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Box display="flex" alignItems="center" gap={1.5}>
-                    <Avatar sx={{ width: 28, height: 28, bgcolor: '#EEF2FF', color: '#4F46E5' }}>
-                      <BusinessIcon sx={{ fontSize: 16 }} />
-                    </Avatar>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Centers
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" fontWeight={700}>
-                    {statsLoading ? <Skeleton width={24} /> : approvedCount + suspendedCount}
-                  </Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Box display="flex" alignItems="center" gap={1.5}>
-                    <Avatar sx={{ width: 28, height: 28, bgcolor: '#F0FDF4', color: STATUS_COLORS.approved }}>
-                      <CheckCircleIcon sx={{ fontSize: 16 }} />
-                    </Avatar>
-                    <Typography variant="body2" color="text.secondary">
-                      Active
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" fontWeight={700} color={STATUS_COLORS.approved}>
-                    {statsLoading ? <Skeleton width={24} /> : approvedCount}
-                  </Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Box display="flex" alignItems="center" gap={1.5}>
-                    <Avatar sx={{ width: 28, height: 28, bgcolor: '#FDF4FF', color: STATUS_COLORS.suspended }}>
-                      <BlockIcon sx={{ fontSize: 16 }} />
-                    </Avatar>
-                    <Typography variant="body2" color="text.secondary">
-                      Suspended
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" fontWeight={700} color={STATUS_COLORS.suspended}>
-                    {statsLoading ? <Skeleton width={24} /> : suspendedCount}
-                  </Typography>
-                </Box>
-                {billing.data && (
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box display="flex" alignItems="center" gap={1.5}>
-                      <Avatar sx={{ width: 28, height: 28, bgcolor: '#FFFBEB', color: STATUS_COLORS.pending }}>
-                        <PeopleIcon sx={{ fontSize: 16 }} />
+              <Box sx={{ px: 3, py: 2 }}>
+                {[
+                  { icon: <CenterIcon  sx={{ fontSize: 16 }} />, label: 'Total Centers',    val: statsLoading ? null : approvedCnt + suspendedCnt, color: BRAND.primary,          bg: BRAND.primaryBg },
+                  { icon: <ApprovedIcon sx={{ fontSize: 16 }} />, label: 'Active',          val: statsLoading ? null : approvedCnt,  color: STATUS_COLORS.approved,  bg: '#F0FDF4' },
+                  { icon: <BlockIcon   sx={{ fontSize: 16 }} />, label: 'Suspended',        val: statsLoading ? null : suspendedCnt, color: STATUS_COLORS.suspended, bg: '#FDF4FF' },
+                  { icon: <PeopleIcon  sx={{ fontSize: 16 }} />, label: 'Billed Students',  val: billing.data?.billed_students ?? null, color: BRAND.accent, bg: `${BRAND.accent}18` },
+                ].map((row, i) => (
+                  <Box key={i}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.25 }}>
+                      <Avatar sx={{ width: 30, height: 30, bgcolor: row.bg, color: row.color, borderRadius: '8px' }}>
+                        {row.icon}
                       </Avatar>
-                      <Typography variant="body2" color="text.secondary">
-                        Billed Students
+                      <Typography sx={{ flex: 1, fontSize: 13, color: BRAND.textSecondary, fontWeight: 500 }}>
+                        {row.label}
                       </Typography>
+                      {row.val === null
+                        ? <Skeleton width={28} height={20} />
+                        : <Typography sx={{ fontSize: 14, fontWeight: 700, color: BRAND.textPrimary }}>{row.val}</Typography>
+                      }
                     </Box>
-                    <Typography variant="body2" fontWeight={700}>
-                      {billing.data.billed_students}
-                    </Typography>
+                    {i < 3 && <Divider sx={{ borderColor: BRAND.divider }} />}
                   </Box>
-                )}
-              </Stack>
+                ))}
+              </Box>
             </CardContent>
           </Card>
         </Grid>

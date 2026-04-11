@@ -3,89 +3,90 @@ import { useNavigate } from 'react-router-dom';
 import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, googleProvider } from '../../firebase';
 import { verifyToken } from '../../api/auth.api';
-
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
+  Collapse,
   Divider,
   IconButton,
   InputAdornment,
   TextField,
   Typography,
-  Alert,
-  Collapse,
 } from '@mui/material';
 import {
-  Visibility,
-  VisibilityOff,
-  LockOutlined,
-  SchoolOutlined,
-  GroupsOutlined,
-  ReceiptLongOutlined,
-  CampaignOutlined,
+  VisibilityRounded,
+  VisibilityOffRounded,
+  BusinessRounded,
+  PeopleRounded,
+  ReceiptRounded,
+  CampaignRounded,
+  CheckCircleRounded,
 } from '@mui/icons-material';
+import { BRAND } from '../../theme';
 
-/* ── Google 'G' SVG logo ─────────────────────────── */
+/* ── Google logo ── */
 function GoogleLogo() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4" />
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853" />
-      <path d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05" />
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335" />
+    <svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+      <path d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
     </svg>
   );
 }
 
-/* ── Floating feature pill ───────────────────────── */
-function FeaturePill({
-  icon,
-  label,
-  position,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  position: { top?: string; bottom?: string; left?: string; right?: string };
+/* ── Feature item for left panel ── */
+function Feature({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+  return (
+    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+      <Box sx={{
+        width: 38, height: 38, borderRadius: '10px',
+        bgcolor: 'rgba(255,255,255,0.15)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0, color: '#FFD166',
+      }}>
+        {icon}
+      </Box>
+      <Box>
+        <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#fff', mb: 0.25 }}>
+          {title}
+        </Typography>
+        <Typography sx={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+          {desc}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+/* ── Decorative circle ── */
+function Circle({ size, top, left, right, bottom, opacity }: {
+  size: number; top?: string | number; left?: string | number;
+  right?: string | number; bottom?: string | number; opacity?: number;
 }) {
   return (
-    <Box
-      sx={{
-        position: 'absolute',
-        ...position,
-        display: { xs: 'none', lg: 'flex' },
-        alignItems: 'center',
-        gap: 1,
-        bgcolor: 'rgba(255,255,255,0.12)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: '40px',
-        px: 2.5,
-        py: 1,
-        border: '1px solid rgba(255,255,255,0.15)',
-        color: 'rgba(255,255,255,0.85)',
-        fontSize: 13,
-        fontWeight: 500,
-        letterSpacing: 0.2,
-        animation: 'float 6s ease-in-out infinite',
-        '@keyframes float': {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-8px)' },
-        },
-      }}
-    >
-      {icon}
-      {label}
-    </Box>
+    <Box sx={{
+      position: 'absolute',
+      width: size, height: size,
+      borderRadius: '50%',
+      border: '1px solid rgba(255,255,255,0.15)',
+      top, left, right, bottom,
+      opacity: opacity ?? 1,
+      pointerEvents: 'none',
+    }} />
   );
 }
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [showPwd,  setShowPwd]  = useState(false);
+  const [error,    setError]    = useState('');
+  const [loading,  setLoading]  = useState(false);
 
   const handleAfterSignIn = async (idToken: string) => {
     const profile = await verifyToken(idToken);
@@ -98,252 +99,221 @@ export default function LoginPage() {
   };
 
   const handleGoogle = async () => {
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
-      await handleAfterSignIn(token);
+      await handleAfterSignIn(await result.user.getIdToken());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Google sign-in failed.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      const token = await result.user.getIdToken();
-      await handleAfterSignIn(token);
+      await handleAfterSignIn(await result.user.getIdToken());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Sign-in failed.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
+  };
+
+  /* shared input style */
+  const inputSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '10px',
+      fontSize: 14,
+      bgcolor: BRAND.surface,
+      color: BRAND.textPrimary,
+      '& fieldset': { borderColor: BRAND.divider },
+      '&:hover fieldset': { borderColor: `${BRAND.primary}60` },
+      '&.Mui-focused fieldset': { borderColor: BRAND.primary, borderWidth: 2 },
+    },
+    '& .MuiInputLabel-root': {
+      fontSize: 14,
+      color: BRAND.textSecondary,
+      '&.Mui-focused': { color: BRAND.primary },
+    },
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+    <Box sx={{ minHeight: '100vh', display: 'flex', fontFamily: 'Roboto, sans-serif' }}>
+
+      {/* ═══════════════════════════════════════
+          LEFT — brand panel
+      ═══════════════════════════════════════ */}
+      <Box sx={{
+        display: { xs: 'none', md: 'flex' },
+        flexDirection: 'column',
+        flex: '0 0 480px',
+        background: `linear-gradient(160deg, #7A1A00 0%, ${BRAND.primary} 50%, ${BRAND.accent} 100%)`,
         position: 'relative',
         overflow: 'hidden',
-        /* Rich gradient background */
-        background: 'linear-gradient(135deg, #0F0C29 0%, #302B63 50%, #24243E 100%)',
-        fontFamily: 'Roboto, sans-serif',
-      }}
-    >
-      {/* ── Animated gradient orbs ── */}
-      <Box
-        sx={{
-          position: 'absolute',
-          width: 600,
-          height: 600,
+        px: 6, py: 7,
+      }}>
+        {/* decorative rings */}
+        <Circle size={480} top={-120} right={-200} />
+        <Circle size={300} top={-60}  right={-140} opacity={0.5} />
+        <Circle size={600} bottom={-260} left={-250} opacity={0.3} />
+        <Circle size={200} bottom={60}  right={-80}  opacity={0.4} />
+
+        {/* glow blob */}
+        <Box sx={{
+          position: 'absolute', width: 320, height: 320,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(79,70,229,0.35) 0%, transparent 70%)',
-          top: '-15%',
-          right: '-10%',
-          filter: 'blur(60px)',
-          animation: 'pulse1 8s ease-in-out infinite',
-          '@keyframes pulse1': {
-            '0%, 100%': { transform: 'scale(1)', opacity: 0.6 },
-            '50%': { transform: 'scale(1.15)', opacity: 0.9 },
-          },
-        }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          width: 500,
-          height: 500,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%)',
-          bottom: '-10%',
-          left: '-8%',
-          filter: 'blur(50px)',
-          animation: 'pulse2 10s ease-in-out infinite',
-          '@keyframes pulse2': {
-            '0%, 100%': { transform: 'scale(1.1)', opacity: 0.5 },
-            '50%': { transform: 'scale(0.9)', opacity: 0.8 },
-          },
-        }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          width: 300,
-          height: 300,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(139,92,246,0.25) 0%, transparent 70%)',
-          top: '40%',
-          left: '60%',
+          background: 'radial-gradient(circle, rgba(255,209,102,0.25) 0%, transparent 70%)',
+          top: '35%', right: -80,
           filter: 'blur(40px)',
-          animation: 'pulse3 12s ease-in-out infinite',
-          '@keyframes pulse3': {
-            '0%, 100%': { transform: 'translate(0, 0)' },
-            '50%': { transform: 'translate(-30px, 20px)' },
-          },
-        }}
-      />
+          pointerEvents: 'none',
+        }} />
 
-      {/* ── Floating feature pills ── */}
-      <FeaturePill
-        icon={<SchoolOutlined sx={{ fontSize: 18 }} />}
-        label="Centre Management"
-        position={{ top: '18%', left: '8%' }}
-      />
-      <FeaturePill
-        icon={<GroupsOutlined sx={{ fontSize: 18 }} />}
-        label="Student Tracking"
-        position={{ top: '30%', right: '6%' }}
-      />
-      <FeaturePill
-        icon={<ReceiptLongOutlined sx={{ fontSize: 18 }} />}
-        label="Billing & Invoicing"
-        position={{ bottom: '28%', left: '5%' }}
-      />
-      <FeaturePill
-        icon={<CampaignOutlined sx={{ fontSize: 18 }} />}
-        label="Feed & Notifications"
-        position={{ bottom: '16%', right: '9%' }}
-      />
-
-      {/* ── Login card ── */}
-      <Box
-        sx={{
-          position: 'relative',
-          zIndex: 1,
-          width: '100%',
-          maxWidth: 440,
-          mx: 2,
-        }}
-      >
-        {/* Brand header above card */}
-        <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Box
-            sx={{
-              width: 64,
-              height: 64,
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, #6366F1, #4F46E5)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mb: 2,
-              boxShadow: '0 8px 32px rgba(79,70,229,0.4)',
-            }}
-          >
-            <Typography
-              sx={{
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: 26,
-                letterSpacing: -1,
-                lineHeight: 1,
-              }}
-            >
+        {/* logo */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 7, position: 'relative' }}>
+          <Box sx={{
+            width: 46, height: 46, borderRadius: '13px',
+            bgcolor: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(8px)',
+          }}>
+            <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: 18, letterSpacing: -1 }}>
               SW
             </Typography>
           </Box>
-          <Typography
-            variant="h5"
-            sx={{
-              color: '#fff',
-              fontWeight: 700,
-              letterSpacing: -0.5,
-              mb: 0.5,
-            }}
-          >
-            SiraguWings
+          <Box>
+            <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 18, lineHeight: 1.1 }}>
+              SiraguWings
+            </Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
+              Admin Console
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* headline */}
+        <Box sx={{ position: 'relative', mb: 6 }}>
+          <Typography sx={{
+            color: '#fff', fontWeight: 800, fontSize: 36,
+            lineHeight: 1.15, letterSpacing: -0.5, mb: 2,
+          }}>
+            Manage India's<br />
+            coaching ecosystem
           </Typography>
-          <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 13.5 }}>
-            Admin Portal
+          <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, lineHeight: 1.7 }}>
+            One platform to onboard, monitor and grow<br />
+            coaching centres — starting from Chennai.
           </Typography>
         </Box>
 
-        {/* Glass card */}
-        <Box
-          sx={{
-            bgcolor: 'rgba(255,255,255,0.07)',
-            backdropFilter: 'blur(24px)',
-            borderRadius: '24px',
-            border: '1px solid rgba(255,255,255,0.12)',
-            p: { xs: 3.5, sm: 5 },
-            boxShadow: '0 24px 80px rgba(0,0,0,0.3)',
-          }}
-        >
-          {/* Lock icon + heading */}
-          <Box sx={{ textAlign: 'center', mb: 3.5 }}>
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                bgcolor: 'rgba(99,102,241,0.2)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mb: 2,
-              }}
-            >
-              <LockOutlined sx={{ color: '#A5B4FC', fontSize: 22 }} />
+        {/* features */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, position: 'relative' }}>
+          <Feature
+            icon={<BusinessRounded sx={{ fontSize: 20 }} />}
+            title="Centre Onboarding"
+            desc="Approve, reject or suspend coaching centres with one click."
+          />
+          <Feature
+            icon={<PeopleRounded sx={{ fontSize: 20 }} />}
+            title="Student Deduplication"
+            desc="Detect and merge duplicate student records automatically."
+          />
+          <Feature
+            icon={<ReceiptRounded sx={{ fontSize: 20 }} />}
+            title="Billing & Invoicing"
+            desc="Track MRR, outstanding amounts and platform fees in real-time."
+          />
+          <Feature
+            icon={<CampaignRounded sx={{ fontSize: 20 }} />}
+            title="Feed Moderation"
+            desc="Review and approve posts before they reach parents."
+          />
+        </Box>
+
+        {/* bottom badge */}
+        <Box sx={{
+          mt: 'auto', pt: 6,
+          display: 'flex', alignItems: 'center', gap: 1,
+          position: 'relative',
+        }}>
+          <CheckCircleRounded sx={{ color: '#FFD166', fontSize: 18 }} />
+          <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 12.5 }}>
+            Secured with Firebase Authentication · Admin-only access
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* ═══════════════════════════════════════
+          RIGHT — form panel
+      ═══════════════════════════════════════ */}
+      <Box sx={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: '#FFFFFF',
+        px: { xs: 3, sm: 6 },
+        py: 6,
+      }}>
+        <Box sx={{ width: '100%', maxWidth: 400 }}>
+
+          {/* mobile brand */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: 1.5, mb: 5 }}>
+            <Box sx={{
+              width: 38, height: 38, borderRadius: '10px',
+              background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: 15 }}>SW</Typography>
             </Box>
-            <Typography
-              variant="h6"
-              sx={{ color: '#fff', fontWeight: 600, mb: 0.5 }}
-            >
-              Welcome back
-            </Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>
-              Sign in to continue to your dashboard
+            <Typography sx={{ fontWeight: 700, fontSize: 16, color: BRAND.textPrimary }}>
+              SiraguWings
             </Typography>
           </Box>
 
-          {/* Error alert */}
+          {/* heading */}
+          <Box sx={{ mb: 5 }}>
+            <Typography sx={{
+              fontSize: 28, fontWeight: 800,
+              color: BRAND.textPrimary, mb: 0.75, lineHeight: 1.2,
+            }}>
+              Welcome back
+            </Typography>
+            <Typography sx={{ fontSize: 15, color: BRAND.textSecondary }}>
+              Sign in to your admin portal
+            </Typography>
+          </Box>
+
+          {/* error */}
           <Collapse in={!!error}>
             <Alert
               severity="error"
               onClose={() => setError('')}
-              sx={{
-                mb: 2.5,
-                borderRadius: '12px',
-                fontSize: 13,
-                bgcolor: 'rgba(239,68,68,0.15)',
-                color: '#FCA5A5',
-                border: '1px solid rgba(239,68,68,0.25)',
-                '& .MuiAlert-icon': { color: '#F87171' },
-              }}
+              sx={{ mb: 3, borderRadius: '10px', fontSize: 13 }}
             >
               {error}
             </Alert>
           </Collapse>
 
-          {/* Google button */}
+          {/* Google */}
           <Button
             fullWidth
             variant="outlined"
             onClick={handleGoogle}
             disabled={loading}
-            startIcon={loading ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : <GoogleLogo />}
+            startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <GoogleLogo />}
             sx={{
-              py: 1.4,
-              borderRadius: '12px',
-              borderColor: 'rgba(255,255,255,0.15)',
-              color: '#fff',
-              bgcolor: 'rgba(255,255,255,0.06)',
-              fontWeight: 500,
-              fontSize: 14,
+              py: 1.4, borderRadius: '10px',
+              borderColor: BRAND.divider,
+              color: BRAND.textPrimary,
+              bgcolor: '#fff',
+              fontWeight: 500, fontSize: 14,
               textTransform: 'none',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
               '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.12)',
-                borderColor: 'rgba(255,255,255,0.25)',
+                borderColor: `${BRAND.primary}50`,
+                bgcolor: BRAND.surface,
+                boxShadow: '0 2px 8px rgba(229,62,0,0.1)',
               },
               mb: 3,
             }}
@@ -351,57 +321,29 @@ export default function LoginPage() {
             Continue with Google
           </Button>
 
-          <Divider sx={{ mb: 3, borderColor: 'rgba(255,255,255,0.1)' }}>
-            <Typography
-              sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, px: 1.5 }}
-            >
-              OR
+          {/* divider */}
+          <Divider sx={{ mb: 3, borderColor: BRAND.divider }}>
+            <Typography sx={{ color: BRAND.textSecondary, fontSize: 12, px: 1.5, fontWeight: 500 }}>
+              or sign in with email
             </Typography>
           </Divider>
 
-          {/* Email / password form */}
-          <Box
-            component="form"
-            onSubmit={handleEmailLogin}
-            sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}
-          >
+          {/* email + password */}
+          <Box component="form" onSubmit={handleEmail} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             <TextField
               label="Email address"
               type="email"
-              size="small"
               fullWidth
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  fontSize: 14,
-                  color: '#fff',
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  '& fieldset': {
-                    borderColor: 'rgba(255,255,255,0.12)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255,255,255,0.25)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#6366F1',
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: 'rgba(255,255,255,0.4)',
-                  fontSize: 14,
-                  '&.Mui-focused': { color: '#A5B4FC' },
-                },
-              }}
+              sx={inputSx}
             />
 
             <TextField
               label="Password"
               type={showPwd ? 'text' : 'password'}
-              size="small"
               fullWidth
               required
               value={password}
@@ -413,41 +355,18 @@ export default function LoginPage() {
                     <IconButton
                       size="small"
                       onClick={() => setShowPwd((p) => !p)}
-                      edge="end"
                       tabIndex={-1}
-                      sx={{ color: 'rgba(255,255,255,0.4)' }}
+                      edge="end"
+                      sx={{ color: BRAND.textSecondary, mr: -0.5 }}
                     >
-                      {showPwd ? (
-                        <VisibilityOff fontSize="small" />
-                      ) : (
-                        <Visibility fontSize="small" />
-                      )}
+                      {showPwd
+                        ? <VisibilityOffRounded sx={{ fontSize: 20 }} />
+                        : <VisibilityRounded   sx={{ fontSize: 20 }} />}
                     </IconButton>
                   </InputAdornment>
                 ),
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '12px',
-                  fontSize: 14,
-                  color: '#fff',
-                  bgcolor: 'rgba(255,255,255,0.05)',
-                  '& fieldset': {
-                    borderColor: 'rgba(255,255,255,0.12)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(255,255,255,0.25)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#6366F1',
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: 'rgba(255,255,255,0.4)',
-                  fontSize: 14,
-                  '&.Mui-focused': { color: '#A5B4FC' },
-                },
-              }}
+              sx={inputSx}
             />
 
             <Button
@@ -456,41 +375,33 @@ export default function LoginPage() {
               fullWidth
               disabled={loading}
               sx={{
-                py: 1.35,
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #6366F1, #4F46E5)',
-                fontWeight: 600,
-                fontSize: 14.5,
+                mt: 0.5, py: 1.45,
+                borderRadius: '10px',
+                background: `linear-gradient(135deg, ${BRAND.primary} 0%, ${BRAND.accent} 100%)`,
+                fontWeight: 700, fontSize: 15,
                 textTransform: 'none',
-                boxShadow: '0 4px 20px rgba(79,70,229,0.4)',
+                boxShadow: `0 4px 16px rgba(229,62,0,0.35)`,
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #818CF8, #6366F1)',
-                  boxShadow: '0 6px 28px rgba(79,70,229,0.5)',
+                  background: `linear-gradient(135deg, ${BRAND.primaryDark} 0%, ${BRAND.primary} 100%)`,
+                  boxShadow: `0 6px 24px rgba(229,62,0,0.45)`,
                 },
-                mt: 0.5,
+                '&.Mui-disabled': { background: '#E5E7EB', boxShadow: 'none' },
               }}
             >
-              {loading ? (
-                <CircularProgress size={20} sx={{ color: '#fff' }} />
-              ) : (
-                'Sign in'
-              )}
+              {loading
+                ? <CircularProgress size={22} sx={{ color: '#fff' }} />
+                : 'Sign in'}
             </Button>
           </Box>
-        </Box>
 
-        {/* Footer */}
-        <Typography
-          sx={{
-            textAlign: 'center',
-            color: 'rgba(255,255,255,0.25)',
-            fontSize: 11.5,
-            mt: 3.5,
-            letterSpacing: 0.3,
-          }}
-        >
-          Admin access only &middot; Unauthorised use is prohibited
-        </Typography>
+          {/* footer */}
+          <Typography sx={{
+            textAlign: 'center', mt: 5,
+            fontSize: 12, color: '#C4A99A', lineHeight: 1.6,
+          }}>
+            Admin access only.<br />Unauthorised use is strictly prohibited.
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );
