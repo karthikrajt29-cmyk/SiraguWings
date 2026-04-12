@@ -59,6 +59,10 @@ const GROUP_COLORS: Record<MasterDataGroup, string> = {
   language:           '#0F766E',
   rejection_category: '#DC2626',
   suspension_reason:  '#B45309',
+  gender:             '#9333EA',
+  class_days:         '#0369A1',
+  class_level:        '#15803D',
+  subject:            '#B45309',
 };
 
 const GROUP_ICONS: Record<MasterDataGroup, SvgIconComponent> = {
@@ -72,6 +76,10 @@ const GROUP_ICONS: Record<MasterDataGroup, SvgIconComponent> = {
   language:           TranslateRoundedIcon,
   rejection_category: ReportRoundedIcon,
   suspension_reason:  BlockRoundedIcon,
+  gender:             PeopleAltRoundedIcon,
+  class_days:         CalendarTodayRoundedIcon,
+  class_level:        SchoolRoundedIcon,
+  subject:            CategoryRoundedIcon,
 };
 
 // ── Add / Edit Dialog ──────────────────────────────────────────────────────────
@@ -503,6 +511,10 @@ function useGroupCounts(): Record<MasterDataGroup, number> {
   const l  = useQuery({ queryKey: ['master-data', 'language',           false], queryFn: () => getMasterData('language',           false) });
   const rc = useQuery({ queryKey: ['master-data', 'rejection_category', false], queryFn: () => getMasterData('rejection_category', false) });
   const sr = useQuery({ queryKey: ['master-data', 'suspension_reason',  false], queryFn: () => getMasterData('suspension_reason',  false) });
+  const gn = useQuery({ queryKey: ['master-data', 'gender',             false], queryFn: () => getMasterData('gender',             false) });
+  const cd = useQuery({ queryKey: ['master-data', 'class_days',         false], queryFn: () => getMasterData('class_days',         false) });
+  const cl = useQuery({ queryKey: ['master-data', 'class_level',        false], queryFn: () => getMasterData('class_level',        false) });
+  const sb = useQuery({ queryKey: ['master-data', 'subject',            false], queryFn: () => getMasterData('subject',            false) });
   return {
     category:           c.data?.length  ?? 0,
     age_group:          a.data?.length  ?? 0,
@@ -514,6 +526,10 @@ function useGroupCounts(): Record<MasterDataGroup, number> {
     language:           l.data?.length  ?? 0,
     rejection_category: rc.data?.length ?? 0,
     suspension_reason:  sr.data?.length ?? 0,
+    gender:             gn.data?.length ?? 0,
+    class_days:         cd.data?.length ?? 0,
+    class_level:        cl.data?.length ?? 0,
+    subject:            sb.data?.length ?? 0,
   };
 }
 

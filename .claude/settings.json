@@ -5,7 +5,10 @@
       "Bash(npx vite:*)",
       "Bash(npx tsc:*)",
       "Bash(python3 -c ':*)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(psql 'postgresql://neondb_owner:npg_MxPqm3Y4CghH@ep-young-bird-amds54wp-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require' -c ':*)",
+      "Bash(grep -r \"Owner\\\\|Parent\" /Users/karthikraj.than/Documents/Personal/SiraguWings/backend/app/routers/admin/*.py)",
+      "Bash(grep -rn \"CREATE TABLE.*app_config\\\\|app_config.*CREATE\" /Users/karthikraj.than/Documents/Personal/SiraguWings/backend/migrations/*.sql)"
     ]
   }
 }

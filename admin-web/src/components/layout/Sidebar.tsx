@@ -18,18 +18,24 @@ import SettingsRoundedIcon     from '@mui/icons-material/SettingsRounded';
 import LinkOffRoundedIcon      from '@mui/icons-material/LinkOffRounded';
 import MergeRoundedIcon        from '@mui/icons-material/MergeRounded';
 import LogoutRoundedIcon       from '@mui/icons-material/LogoutRounded';
+import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded';
+import FamilyRestroomRoundedIcon from '@mui/icons-material/FamilyRestroomRounded';
+import CardMembershipRoundedIcon from '@mui/icons-material/CardMembershipRounded';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { BRAND } from '../../theme';
 
 const NAV_ITEMS = [
-  { label: 'Dashboard',       icon: <DashboardRoundedIcon />, path: '/dashboard' },
-  { label: 'Centers',         icon: <BusinessRoundedIcon />,  path: '/centers' },
-  { label: 'Users',           icon: <PeopleRoundedIcon />,    path: '/users' },
-  { label: 'Unlink Requests', icon: <LinkOffRoundedIcon />,   path: '/unlink-requests' },
-  { label: 'Billing',         icon: <ReceiptRoundedIcon />,   path: '/billing' },
-  { label: 'Feed Moderation', icon: <ArticleRoundedIcon />,   path: '/content' },
-  { label: 'Students',        icon: <MergeRoundedIcon />,     path: '/students' },
+  { label: 'Dashboard',         icon: <DashboardRoundedIcon />,          path: '/dashboard' },
+  { label: 'Users',             icon: <PeopleRoundedIcon />,             path: '/users' },
+  { label: 'Owner Management',  icon: <ManageAccountsRoundedIcon />,     path: '/owners' },
+  { label: 'Parent Management', icon: <FamilyRestroomRoundedIcon />,     path: '/parents' },
+  { label: 'Centers',           icon: <BusinessRoundedIcon />,           path: '/centers' },
+  { label: 'Subscription',      icon: <CardMembershipRoundedIcon />,     path: '/subscription' },
+  { label: 'Billing',           icon: <ReceiptRoundedIcon />,            path: '/billing' },
+  { label: 'Feed Moderation',   icon: <ArticleRoundedIcon />,            path: '/content' },
+  { label: 'Unlink Requests',   icon: <LinkOffRoundedIcon />,            path: '/unlink-requests' },
+  { label: 'Student Merging',   icon: <MergeRoundedIcon />,              path: '/students' },
 ];
 
 function NavItem({ item, active }: { item: typeof NAV_ITEMS[0]; active: boolean }) {

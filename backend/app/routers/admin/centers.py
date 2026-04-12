@@ -12,6 +12,7 @@ from app.database import get_db
 from app.dependencies import CurrentUser, require_admin
 from app.schemas.center import (
     AddCenterUserRequest,
+    AssignOwnerRequest,
     BatchCreateRequest,
     BatchSummary,
     BulkApproveRequest,
@@ -29,6 +30,7 @@ from app.schemas.common import PagedResponse, SuccessResponse
 from app.services.center_service import (
     daycare_docs_complete,
     get_center_or_404,
+    get_center_detail_with_owner,
     requires_daycare_docs,
 )
 from app.services.notification_service import notify_all_admins, notify_center_owner
@@ -39,10 +41,67 @@ SLA_WARN_HOURS = 20   # flag as approaching
 SLA_BREACH_HOURS = 24 # SLA target
 
 
+def _build_center_detail(r, hours: Optional[float] = None) -> CenterDetail:
+    """Build CenterDetail from a row returned by get_center_detail_with_owner."""
+    keys = set(r.keys())
+    return CenterDetail(
+        id=r["id"], name=r["name"], category=r["category"],
+        owner_name=r["owner_name"], mobile_number=r["mobile_number"], city=r["city"],
+        state=r["state"] if "state" in keys else "Tamil Nadu",
+        pincode=r["pincode"] if "pincode" in keys else None,
+        registration_status=r["registration_status"],
+        subscription_status=r["subscription_status"],
+        created_date=r["created_date"], approved_at=r["approved_at"],
+        hours_since_submission=round(hours, 1) if hours is not None else None,
+        is_approaching_sla=(hours is not None and hours >= SLA_WARN_HOURS),
+        address=r["address"],
+        latitude=float(r["latitude"]) if r["latitude"] else None,
+        longitude=float(r["longitude"]) if r["longitude"] else None,
+        operating_days=r["operating_days"], operating_timings=r["operating_timings"],
+        age_group=r["age_group"], description=r["description"],
+        logo_url=r["logo_url"], cover_image_url=r["cover_image_url"],
+        fee_range=r["fee_range"], facilities=r["facilities"],
+        social_link=r["social_link"], website_link=r["website_link"],
+        rejection_reason=r["rejection_reason"] if "rejection_reason" in keys else None,
+        rejection_category=r["rejection_category"] if "rejection_category" in keys else None,
+        admin_notes=r["admin_notes"] if "admin_notes" in keys else None,
+        registration_cert_url=r["registration_cert_url"],
+        premises_proof_url=r["premises_proof_url"],
+        owner_id_proof_url=r["owner_id_proof_url"],
+        safety_cert_url=r["safety_cert_url"],
+        trial_ends_at=r["trial_ends_at"],
+        suspended_at=r["suspended_at"],
+        data_purge_at=r["data_purge_at"],
+        owner_id=r["owner_id"] if "owner_id" in keys else None,
+        owner_user_name=r["owner_user_name"] if "owner_user_name" in keys else None,
+        owner_user_email=r["owner_user_email"] if "owner_user_email" in keys else None,
+        owner_user_mobile=r["owner_user_mobile"] if "owner_user_mobile" in keys else None,
+    )
+
+
 def _hours_since(dt: datetime) -> float:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+
+
+# ---------------------------------------------------------------------------
+# ALL CENTERS (flat list for dropdowns — id + name only)
+# ---------------------------------------------------------------------------
+@router.get("/all", response_model=list[dict])
+async def list_all_centers(
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> list[dict]:
+    rows = await db.fetch(
+        """
+        SELECT id::text, name, city
+        FROM center
+        WHERE is_deleted = FALSE
+        ORDER BY name
+        """
+    )
+    return [dict(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -162,41 +221,17 @@ async def create_center(
         new_id, request.name, request.category, request.owner_name, request.mobile_number,
         request.address, request.city,
         getattr(request, "state", "Tamil Nadu") or "Tamil Nadu",
-        getattr(request, "pincode", None),
+        request.pincode or None,
         request.description,
         request.operating_days, request.operating_timings, request.age_group,
-        request.fee_range, request.facilities, request.social_link, request.website_link,
+        request.fee_range or None, request.facilities or None,
+        request.social_link or None, request.website_link or None,
         request.latitude, request.longitude,
         admin.user_id,
     )
     await write_audit_log(db, admin.user_id, "Create", "Center", new_id, "{}", request.model_dump_json())
-    r = await get_center_or_404(db, new_id)
-    return CenterDetail(
-        id=r["id"], name=r["name"], category=r["category"],
-        owner_name=r["owner_name"], mobile_number=r["mobile_number"], city=r["city"],
-        state=r["state"] if "state" in r.keys() else "Tamil Nadu",
-        pincode=r["pincode"] if "pincode" in r.keys() else None,
-        registration_status=r["registration_status"],
-        subscription_status=r["subscription_status"],
-        created_date=r["created_date"], approved_at=r["approved_at"],
-        hours_since_submission=0, is_approaching_sla=False,
-        address=r["address"],
-        latitude=float(r["latitude"]) if r["latitude"] else None,
-        longitude=float(r["longitude"]) if r["longitude"] else None,
-        operating_days=r["operating_days"], operating_timings=r["operating_timings"],
-        age_group=r["age_group"], description=r["description"],
-        logo_url=r["logo_url"], cover_image_url=r["cover_image_url"],
-        fee_range=r["fee_range"], facilities=r["facilities"],
-        social_link=r["social_link"], website_link=r["website_link"],
-        rejection_reason=None, rejection_category=None, admin_notes=None,
-        registration_cert_url=r["registration_cert_url"],
-        premises_proof_url=r["premises_proof_url"],
-        owner_id_proof_url=r["owner_id_proof_url"],
-        safety_cert_url=r["safety_cert_url"],
-        trial_ends_at=r["trial_ends_at"],
-        suspended_at=r["suspended_at"],
-        data_purge_at=r["data_purge_at"],
-    )
+    r = await get_center_detail_with_owner(db, new_id)
+    return _build_center_detail(r, hours=0)
 
 
 # ---------------------------------------------------------------------------
@@ -208,38 +243,103 @@ async def get_center_detail(
     db: asyncpg.Connection = Depends(get_db),
     admin: CurrentUser = Depends(require_admin),
 ) -> CenterDetail:
-    r = await get_center_or_404(db, center_id)
+    r = await get_center_detail_with_owner(db, center_id)
     hours: Optional[float] = None
     if r["registration_status"] in ("Submitted", "UnderReview"):
         hours = _hours_since(r["created_date"])
+    return _build_center_detail(r, hours)
 
-    return CenterDetail(
-        id=r["id"], name=r["name"], category=r["category"],
-        owner_name=r["owner_name"], mobile_number=r["mobile_number"], city=r["city"],
-        state=r["state"] if "state" in r.keys() else "Tamil Nadu",
-        pincode=r["pincode"] if "pincode" in r.keys() else None,
-        registration_status=r["registration_status"],
-        subscription_status=r["subscription_status"],
-        created_date=r["created_date"], approved_at=r["approved_at"],
-        hours_since_submission=round(hours, 1) if hours is not None else None,
-        is_approaching_sla=(hours is not None and hours >= SLA_WARN_HOURS),
-        address=r["address"],
-        latitude=float(r["latitude"]) if r["latitude"] else None,
-        longitude=float(r["longitude"]) if r["longitude"] else None,
-        operating_days=r["operating_days"], operating_timings=r["operating_timings"],
-        age_group=r["age_group"], description=r["description"],
-        logo_url=r["logo_url"], cover_image_url=r["cover_image_url"],
-        fee_range=r["fee_range"], facilities=r["facilities"],
-        social_link=r["social_link"], website_link=r["website_link"],
-        rejection_reason=r["rejection_reason"], rejection_category=r["rejection_category"],
-        admin_notes=r["admin_notes"],
-        registration_cert_url=r["registration_cert_url"],
-        premises_proof_url=r["premises_proof_url"],
-        owner_id_proof_url=r["owner_id_proof_url"],
-        safety_cert_url=r["safety_cert_url"],
-        trial_ends_at=r["trial_ends_at"],
-        suspended_at=r["suspended_at"],
-        data_purge_at=r["data_purge_at"],
+
+# ---------------------------------------------------------------------------
+# ASSIGN OWNER
+# ---------------------------------------------------------------------------
+@router.patch("/{center_id}/assign-owner", response_model=SuccessResponse)
+async def assign_owner(
+    center_id: uuid.UUID,
+    request: AssignOwnerRequest,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> SuccessResponse:
+    """
+    Link a user account to a center as Owner.
+    Looks up the user by mobile number — the user must already exist in the system.
+    Also ensures the user has an Owner role entry for this center in user_role.
+    """
+    center = await get_center_or_404(db, center_id, select="id, name, owner_id")
+
+    # Look up user by user_id (preferred) or mobile_number (fallback)
+    if request.user_id:
+        user = await db.fetchrow(
+            "SELECT id, name, email, mobile_number FROM \"user\" WHERE id=$1 AND is_deleted=FALSE",
+            request.user_id,
+        )
+        if not user:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
+    elif request.mobile_number:
+        user = await db.fetchrow(
+            "SELECT id, name, email, mobile_number FROM \"user\" WHERE mobile_number=$1 AND is_deleted=FALSE",
+            request.mobile_number,
+        )
+        if not user:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"No user found with mobile number {request.mobile_number}. "
+                "The owner must register in the app first.",
+            )
+    else:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Provide either user_id or mobile_number.")
+
+    old_owner_id = center["owner_id"]
+
+    async with db.transaction():
+        # Update center.owner_id
+        await db.execute(
+            """
+            UPDATE center SET owner_id=$1, owner_name=$2,
+                modified_by=$3, modified_date=NOW() AT TIME ZONE 'UTC',
+                version_number=version_number+1
+            WHERE id=$4
+            """,
+            user["id"], user["name"], admin.user_id, center_id,
+        )
+
+        # Remove old Owner role entry for this center if owner changed
+        if old_owner_id and old_owner_id != user["id"]:
+            await db.execute(
+                """
+                UPDATE user_role SET is_deleted=TRUE, modified_by=$1,
+                    modified_date=NOW() AT TIME ZONE 'UTC'
+                WHERE user_id=$2 AND center_id=$3 AND role='Owner' AND is_deleted=FALSE
+                """,
+                admin.user_id, old_owner_id, center_id,
+            )
+
+        # Upsert Owner role for the new owner
+        existing_role = await db.fetchrow(
+            """
+            SELECT id FROM user_role
+            WHERE user_id=$1 AND center_id=$2 AND role='Owner' AND is_deleted=FALSE
+            """,
+            user["id"], center_id,
+        )
+        if not existing_role:
+            await db.execute(
+                """
+                INSERT INTO user_role (user_id, center_id, role, is_active, created_by, created_date)
+                VALUES ($1, $2, 'Owner', TRUE, $3, NOW() AT TIME ZONE 'UTC')
+                """,
+                user["id"], center_id, admin.user_id,
+            )
+
+    await write_audit_log(
+        db, admin.user_id, "AssignOwner", "Center", center_id,
+        f'{{"owner_id":"{old_owner_id}"}}',
+        f'{{"owner_id":"{user["id"]}","owner_name":"{user["name"]}"}}'
+    )
+    return SuccessResponse(
+        message=f"Owner '{user['name']}' assigned to {center['name']}.",
+        data={"owner_id": str(user["id"]), "owner_name": user["name"],
+              "owner_mobile": user["mobile_number"], "owner_email": user["email"]},
     )
 
 
@@ -298,6 +398,26 @@ async def approve_center(
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             f"Cannot approve center with status '{center['registration_status']}'.",
+        )
+
+    # Owner must be assigned before approval — check owner_id OR a user_role Owner entry
+    has_owner = bool(center["owner_id"])
+    if not has_owner:
+        has_owner = await db.fetchval(
+            """
+            SELECT EXISTS (
+                SELECT 1 FROM user_role
+                WHERE center_id = $1 AND role = 'Owner'
+                  AND is_active = TRUE AND is_deleted = FALSE
+            )
+            """,
+            center_id,
+        )
+    if not has_owner:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Cannot approve: center has no linked owner account. "
+            "Assign an owner via the Owner section before approving.",
         )
 
     # Extra doc check for Daycare / KidsSchool
@@ -522,7 +642,12 @@ async def update_center(
 ) -> SuccessResponse:
     await get_center_or_404(db, center_id, select="id")
 
-    fields = request.model_dump(exclude_none=True)
+    raw = request.model_dump(exclude_none=True)
+    # Optional text fields: coerce empty string → None so DB check constraints
+    # (e.g. ck_center_description_len) are not violated.
+    NULLABLE_TEXT = {"description", "fee_range", "facilities", "social_link",
+                     "website_link", "pincode", "admin_notes"}
+    fields = {k: (None if k in NULLABLE_TEXT and v == "" else v) for k, v in raw.items()}
     if not fields:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields provided to update.")
 
@@ -622,18 +747,60 @@ async def add_center_user(
             f"{user['name']} already has role '{request.role}' in this center.",
         )
 
-    await db.execute(
-        """
-        INSERT INTO user_role (id, user_id, role, center_id, assigned_at, created_by, created_date,
-                               is_active, is_deleted, version_number, source_system)
-        VALUES (gen_random_uuid(), $1, $2, $3, NOW() AT TIME ZONE 'UTC', $4,
-                NOW() AT TIME ZONE 'UTC', TRUE, FALSE, 1, 'AdminPortal')
-        """,
-        user["id"], request.role, center_id, admin.user_id,
-    )
+    try:
+        await db.execute(
+            """
+            INSERT INTO user_role (id, user_id, role, center_id, assigned_at, created_by, created_date,
+                                   is_active, is_deleted, version_number, source_system)
+            VALUES (gen_random_uuid(), $1, $2, $3, NOW() AT TIME ZONE 'UTC', $4,
+                    NOW() AT TIME ZONE 'UTC', TRUE, FALSE, 1, 'AdminPortal')
+            """,
+            user["id"], request.role, center_id, admin.user_id,
+        )
+    except asyncpg.UniqueViolationError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{user['name']} already has role '{request.role}' in this center.",
+        )
     await write_audit_log(db, admin.user_id, "Create", "UserRole", center_id,
                           "{}", f'{{"user_id":"{user["id"]}","role":"{request.role}"}}')
     return SuccessResponse(message=f"{user['name']} added as {request.role}.")
+
+
+# ---------------------------------------------------------------------------
+# REMOVE USER FROM CENTER (soft-delete a specific role assignment)
+# ---------------------------------------------------------------------------
+@router.delete("/{center_id}/users/{user_id}", response_model=SuccessResponse)
+async def remove_center_user(
+    center_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str = Query(..., description="Role to remove: Owner | Teacher | Staff"),
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> SuccessResponse:
+    """Soft-delete a single (user_id, role, center_id) assignment."""
+    if role not in ("Owner", "Teacher", "Staff"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "role must be Owner, Teacher, or Staff")
+
+    result = await db.execute(
+        """
+        UPDATE user_role
+        SET is_deleted=TRUE, is_active=FALSE,
+            modified_by=$1, modified_date=NOW() AT TIME ZONE 'UTC',
+            version_number=version_number+1
+        WHERE user_id=$2 AND center_id=$3 AND role=$4 AND is_deleted=FALSE
+        """,
+        admin.user_id, user_id, center_id, role,
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No active '{role}' assignment found for this user in this center.",
+        )
+
+    await write_audit_log(db, admin.user_id, "Delete", "UserRole", center_id,
+                          f'{{"user_id":"{user_id}","role":"{role}"}}', "{}")
+    return SuccessResponse(message=f"{role} assignment removed.")
 
 
 # ---------------------------------------------------------------------------

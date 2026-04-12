@@ -11,7 +11,11 @@ from app.schemas.common import SuccessResponse
 
 router = APIRouter()
 
-ALLOWED_GROUPS = {"category", "age_group", "operating_days", "city", "facilities", "fee_range", "board", "language", "rejection_category", "suspension_reason"}
+ALLOWED_GROUPS = {
+    "category", "age_group", "operating_days", "city", "facilities",
+    "fee_range", "board", "language", "rejection_category", "suspension_reason",
+    "gender", "class_days", "class_level", "subject",
+}
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────

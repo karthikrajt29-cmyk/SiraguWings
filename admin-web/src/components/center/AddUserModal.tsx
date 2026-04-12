@@ -1,15 +1,12 @@
 import {
+  Autocomplete,
   Box,
   Button,
   CircularProgress,
   Dialog,
   DialogContent,
   DialogTitle,
-  FormControl,
   IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   TextField,
   Typography,
@@ -99,12 +96,13 @@ export default function AddUserModal({ open, centerId, onClose }: Props) {
             type="tel"
           />
 
-          <FormControl fullWidth size="small">
-            <InputLabel>Role *</InputLabel>
-            <Select value={role} label="Role *" onChange={(e) => setRole(e.target.value)}>
-              {ROLES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-            </Select>
-          </FormControl>
+          <Autocomplete
+            options={ROLES}
+            value={role}
+            onChange={(_, v) => setRole(v ?? 'Teacher')}
+            disableClearable
+            renderInput={(params) => <TextField {...params} label="Role *" size="small" />}
+          />
 
           <Box sx={{
             p: 1.5, borderRadius: 1.5,

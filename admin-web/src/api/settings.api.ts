@@ -20,3 +20,25 @@ export const updateMaterialVisibility = (mode: string) =>
 
 export const updateConfigKey = (config_key: string, value: string | number) =>
   apiClient.patch(`/admin/settings/${config_key}`, { value }).then((r) => r.data);
+
+export interface BillingEmailSettings {
+  billing_email_from: string;
+  billing_email_cc: string;
+  billing_email_bcc: string;
+  billing_due_days: number;
+  billing_reminder_days: number;
+  billing_send_on_generate: string; // "true" | "false"
+}
+
+export const getBillingEmailSettings = () =>
+  apiClient.get<BillingEmailSettings>('/admin/settings/billing-email').then((r) => r.data);
+
+export const updateBillingEmailSettings = (body: Partial<{
+  billing_email_from: string;
+  billing_email_cc: string;
+  billing_email_bcc: string;
+  billing_due_days: number;
+  billing_reminder_days: number;
+  billing_send_on_generate: boolean;
+}>) =>
+  apiClient.patch<{ message: string }>('/admin/settings/billing-email', body).then((r) => r.data);

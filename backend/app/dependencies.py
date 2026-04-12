@@ -110,3 +110,35 @@ async def require_admin(
             detail="Admin access required.",
         )
     return current_user
+
+
+async def require_owner(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """Caller must have Owner role on at least one center."""
+    if not current_user.is_owner():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Owner access required.",
+        )
+    return current_user
+
+
+def get_owned_center_ids(user: CurrentUser) -> List[uuid.UUID]:
+    """Return UUIDs of centers the user owns. Empty list for non-owners."""
+    ids: List[uuid.UUID] = []
+    for r in user.roles:
+        if r["role"] == "Owner" and r.get("center_id") is not None:
+            ids.append(uuid.UUID(str(r["center_id"])))
+    return ids
+
+
+def assert_owns_center(center_id: uuid.UUID, user: CurrentUser) -> None:
+    """Raise 403 if user does not own the given center. Admins bypass."""
+    if user.is_admin():
+        return
+    if not user.is_owner(center_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this center.",
+        )

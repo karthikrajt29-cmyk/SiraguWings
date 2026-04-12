@@ -11,6 +11,7 @@ from app.core.exceptions import global_exception_handler
 from app.database import close_pool, get_pool
 from app.routers import auth
 from app.routers.admin import router as admin_router
+from app.routers.owner import router as owner_router
 
 UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -74,6 +75,7 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 # Routers
 app.include_router(auth.router,   prefix="/auth",  tags=["Authentication"])
 app.include_router(admin_router,  prefix="/admin", tags=["Admin"])
+app.include_router(owner_router,  prefix="/owner", tags=["Owner"])
 
 
 @app.get("/health", tags=["Health"])

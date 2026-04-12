@@ -51,3 +51,61 @@ async def verify_firebase_token(token: str) -> dict:
     """Verify a Firebase ID token and return the decoded claims."""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _verify_sync, token)
+
+
+def _update_user_sync(current_email: str, new_name: Optional[str], new_email: Optional[str]) -> None:
+    """Update display name and/or email in Firebase Auth."""
+    _init()
+    fb_user = auth.get_user_by_email(current_email)
+    kwargs: dict = {}
+    if new_name:
+        kwargs["display_name"] = new_name
+    if new_email:
+        kwargs["email"] = new_email
+    if kwargs:
+        auth.update_user(fb_user.uid, **kwargs)
+
+
+async def update_firebase_user(current_email: str, new_name: Optional[str] = None, new_email: Optional[str] = None) -> None:
+    """Update Firebase Auth user profile."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, partial(_update_user_sync, current_email, new_name, new_email))
+
+
+def _reset_link_sync(email: str) -> str:
+    _init()
+    return auth.generate_password_reset_link(email)
+
+
+async def generate_password_reset_link(email: str) -> str:
+    """Generate a Firebase password reset link for the given email."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _reset_link_sync, email)
+
+
+def _create_user_sync(email: str, display_name: str) -> str:
+    """Create a Firebase user (no password — user sets it via reset link). Returns UID."""
+    _init()
+    fb_user = auth.create_user(email=email, display_name=display_name, email_verified=False)
+    return fb_user.uid
+
+
+async def create_firebase_user(email: str, display_name: str) -> str:
+    """Create a Firebase Auth account and return the UID."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, partial(_create_user_sync, email, display_name))
+
+
+def _delete_user_sync(email: str) -> None:
+    _init()
+    try:
+        fb_user = auth.get_user_by_email(email)
+        auth.delete_user(fb_user.uid)
+    except auth.UserNotFoundError:
+        pass  # already gone — that's fine
+
+
+async def delete_firebase_user(email: str) -> None:
+    """Delete a Firebase Auth account by email (no-op if not found)."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _delete_user_sync, email)

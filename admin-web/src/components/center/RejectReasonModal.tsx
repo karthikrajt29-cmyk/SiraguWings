@@ -1,15 +1,12 @@
 import {
+  Autocomplete,
   Box,
   Button,
   CircularProgress,
   Dialog,
   DialogContent,
   DialogTitle,
-  FormControl,
   IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   TextField,
   Typography,
@@ -99,20 +96,19 @@ export default function RejectReasonModal({
 
       <DialogContent sx={{ px: 2.5, pt: 2.5, pb: 2.5 }}>
         <Stack spacing={2.5}>
-          <FormControl fullWidth size="small">
-            <InputLabel>{isReject ? 'Rejection Category *' : 'Reason Category *'}</InputLabel>
-            <Select
-              value={category}
-              label={isReject ? 'Rejection Category *' : 'Reason Category *'}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {categories.map((c) => (
-                <MenuItem key={c.value} value={c.value}>
-                  {c.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Autocomplete
+            options={categories}
+            getOptionLabel={(o) => o.label}
+            value={categories.find(c => c.value === category) ?? null}
+            onChange={(_, v) => setCategory(v?.value ?? '')}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={isReject ? 'Rejection Category *' : 'Reason Category *'}
+                size="small"
+              />
+            )}
+          />
 
           <TextField
             label={isReject ? 'Rejection Reason *' : 'Suspension Reason *'}

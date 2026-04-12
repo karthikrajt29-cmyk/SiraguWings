@@ -1,4 +1,5 @@
 import {
+  Autocomplete,
   Box,
   Button,
   CircularProgress,
@@ -6,13 +7,9 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  FormControl,
   Grid,
   IconButton,
   InputAdornment,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   TextField,
   Typography,
@@ -23,6 +20,7 @@ import CurrencyRupeeRoundedIcon from '@mui/icons-material/CurrencyRupeeRounded';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createBatch, getCenterUsers, type BatchCreatePayload } from '../../api/centers.api';
+import { getMasterData } from '../../api/masterData.api';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { BRAND } from '../../theme';
 
@@ -32,13 +30,14 @@ interface Props {
   onClose: () => void;
 }
 
-const DAYS_OPTIONS = [
-  { label: 'Mon – Fri',          value: 'Mon,Tue,Wed,Thu,Fri' },
-  { label: 'Mon, Wed, Fri',      value: 'Mon,Wed,Fri' },
-  { label: 'Tue, Thu, Sat',      value: 'Tue,Thu,Sat' },
-  { label: 'Sat & Sun',          value: 'Sat,Sun' },
-  { label: 'All Days',           value: 'Mon,Tue,Wed,Thu,Fri,Sat,Sun' },
-  { label: 'Custom',             value: 'Custom' },
+const CUSTOM_DAYS_VALUE = 'Custom';
+
+const DAYS_FALLBACK = [
+  { label: 'Mon – Fri',     value: 'Mon,Tue,Wed,Thu,Fri' },
+  { label: 'Mon, Wed, Fri', value: 'Mon,Wed,Fri' },
+  { label: 'Tue, Thu, Sat', value: 'Tue,Thu,Sat' },
+  { label: 'Sat & Sun',     value: 'Sat,Sun' },
+  { label: 'All Days',      value: 'Mon,Tue,Wed,Thu,Fri,Sat,Sun' },
 ];
 
 const EMPTY: BatchCreatePayload = {
@@ -78,11 +77,22 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
   });
   const teachers = users.filter((u) => u.role === 'Teacher');
 
+  /* Class days from master_data (fallback to hardcoded list if API fails) */
+  const { data: classDaysRaw } = useQuery({
+    queryKey: ['master-data', 'class_days'],
+    queryFn: () => getMasterData('class_days'),
+    staleTime: 5 * 60 * 1000,
+  });
+  const dayOptions =
+    classDaysRaw && classDaysRaw.length > 0
+      ? classDaysRaw.map((d) => ({ label: d.label, value: d.value }))
+      : DAYS_FALLBACK;
+
   const validate = (): boolean => {
     const next: Errors = {};
     if (!form.course_name.trim()) next.course_name = 'Required';
     if (!form.batch_name.trim())  next.batch_name  = 'Required';
-    const days = form.class_days === 'Custom' ? customDays : form.class_days;
+    const days = form.class_days === CUSTOM_DAYS_VALUE ? customDays : form.class_days;
     if (!days.trim()) next.class_days = 'Select days';
     if (!form.start_time) next.start_time = 'Required';
     if (!form.end_time)   next.end_time   = 'Required';
@@ -95,7 +105,7 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
 
   const mut = useMutation({
     mutationFn: () => {
-      const days = form.class_days === 'Custom' ? customDays.trim() : form.class_days;
+      const days = form.class_days === CUSTOM_DAYS_VALUE ? customDays.trim() : form.class_days;
       return createBatch(centerId, {
         ...form,
         class_days: days,
@@ -171,19 +181,16 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
                 {field('category_type', 'Category Type', { placeholder: 'e.g. Tuition' })}
               </Grid>
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth size="small" error={!!errors.teacher_id}>
-                  <InputLabel>Teacher (optional)</InputLabel>
-                  <Select
-                    value={form.teacher_id ?? ''}
-                    label="Teacher (optional)"
-                    onChange={(e) => set('teacher_id', e.target.value || null)}
-                  >
-                    <MenuItem value=""><em>— None —</em></MenuItem>
-                    {teachers.map((t) => (
-                      <MenuItem key={t.user_id} value={t.user_id}>{t.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Autocomplete
+                  options={teachers}
+                  getOptionLabel={(t) => t.name}
+                  value={teachers.find(t => t.user_id === form.teacher_id) ?? null}
+                  onChange={(_, v) => set('teacher_id', v?.user_id ?? null)}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Teacher (optional)" size="small"
+                      error={!!errors.teacher_id} helperText={errors.teacher_id} />
+                  )}
+                />
               </Grid>
             </Grid>
           </Box>
@@ -195,25 +202,23 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
             <SectionHead title="Schedule" />
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <FormControl fullWidth size="small" error={!!errors.class_days}>
-                  <InputLabel>Class Days *</InputLabel>
-                  <Select
-                    value={form.class_days}
-                    label="Class Days *"
-                    onChange={(e) => set('class_days', e.target.value)}
-                  >
-                    {DAYS_OPTIONS.map((d) => (
-                      <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
-                    ))}
-                  </Select>
-                  {errors.class_days && (
-                    <Typography sx={{ fontSize: 11, color: 'error.main', mt: 0.5, ml: 1.75 }}>
-                      {errors.class_days}
-                    </Typography>
-                  )}
-                </FormControl>
+                {(() => {
+                  const allDayOpts = [...dayOptions, { label: 'Custom', value: CUSTOM_DAYS_VALUE }];
+                  return (
+                    <Autocomplete
+                      options={allDayOpts}
+                      getOptionLabel={(o) => o.label}
+                      value={allDayOpts.find(o => o.value === form.class_days) ?? null}
+                      onChange={(_, v) => set('class_days', v?.value ?? '')}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Class Days *" size="small"
+                          error={!!errors.class_days} helperText={errors.class_days} />
+                      )}
+                    />
+                  );
+                })()}
               </Grid>
-              {form.class_days === 'Custom' && (
+              {form.class_days === CUSTOM_DAYS_VALUE && (
                 <Grid item xs={12}>
                   <TextField
                     label="Custom Days *" size="small" fullWidth

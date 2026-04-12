@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, field_validator
@@ -37,7 +37,7 @@ class CenterDetail(CenterSummary):
     operating_days: str
     operating_timings: str
     age_group: str
-    description: str
+    description: Optional[str] = None
     logo_url: Optional[str] = None
     cover_image_url: Optional[str] = None
     fee_range: Optional[str] = None
@@ -54,6 +54,16 @@ class CenterDetail(CenterSummary):
     trial_ends_at: Optional[datetime] = None
     suspended_at: Optional[datetime] = None
     data_purge_at: Optional[datetime] = None
+    # owner mapping
+    owner_id: Optional[uuid.UUID] = None
+    owner_user_name: Optional[str] = None
+    owner_user_email: Optional[str] = None
+    owner_user_mobile: Optional[str] = None
+
+
+class AssignOwnerRequest(BaseModel):
+    user_id: Optional[uuid.UUID] = None      # preferred: look up by UUID
+    mobile_number: Optional[str] = None      # fallback: look up by mobile
 
 
 class CenterApproveRequest(BaseModel):
@@ -87,6 +97,13 @@ class BulkApproveRequest(BaseModel):
     admin_notes: Optional[str] = None
 
 
+def _empty_str_to_none(v: Optional[str]) -> Optional[str]:
+    """Coerce empty string to None so optional text fields store NULL in DB."""
+    if isinstance(v, str) and v.strip() == '':
+        return None
+    return v
+
+
 class CenterCreateRequest(BaseModel):
     name: str
     category: str
@@ -99,13 +116,19 @@ class CenterCreateRequest(BaseModel):
     operating_days: str
     operating_timings: str
     age_group: str
-    description: Optional[str] = None
+    description: str
     fee_range: Optional[str] = None
     facilities: Optional[str] = None
     social_link: Optional[str] = None
     website_link: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+
+    @field_validator('fee_range', 'facilities', 'social_link',
+                     'website_link', 'pincode', mode='before')
+    @classmethod
+    def blank_to_none(cls, v: object) -> object:
+        return _empty_str_to_none(v) if isinstance(v, str) else v
 
 
 class CenterUpdateRequest(BaseModel):
@@ -129,6 +152,12 @@ class CenterUpdateRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     logo_url: Optional[str] = None
+
+    @field_validator('description', 'fee_range', 'facilities', 'social_link',
+                     'website_link', 'pincode', 'admin_notes', mode='before')
+    @classmethod
+    def blank_to_none(cls, v: object) -> object:
+        return _empty_str_to_none(v) if isinstance(v, str) else v
 
 
 class CenterUserSummary(BaseModel):
@@ -172,3 +201,71 @@ class BatchCreateRequest(BaseModel):
     strength_limit: Optional[int] = None
     fee_amount: float
     teacher_id: Optional[uuid.UUID] = None
+
+
+class BatchUpdateRequest(BaseModel):
+    course_name: Optional[str] = None
+    batch_name: Optional[str] = None
+    category_type: Optional[str] = None
+    class_days: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    strength_limit: Optional[int] = None
+    fee_amount: Optional[float] = None
+    teacher_id: Optional[uuid.UUID] = None
+    is_active: Optional[bool] = None
+
+
+# ── Teacher CRUD (owner-scoped) ────────────────────────────────────────────
+
+class TeacherSummary(BaseModel):
+    id: uuid.UUID                   # center_teacher.id
+    user_id: uuid.UUID
+    name: str
+    email: Optional[str] = None
+    mobile_number: str
+    specialisation: Optional[str] = None
+    joined_at: datetime
+    is_active: bool
+
+
+class TeacherCreateRequest(BaseModel):
+    mobile_number: str
+    specialisation: Optional[str] = None
+
+
+class TeacherUpdateRequest(BaseModel):
+    specialisation: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+# ── Student CRUD (owner-scoped) ────────────────────────────────────────────
+
+class StudentSummary(BaseModel):
+    id: uuid.UUID
+    name: str
+    date_of_birth: date
+    gender: str
+    parent_id: Optional[uuid.UUID] = None
+    parent_name: Optional[str] = None
+    parent_mobile: Optional[str] = None
+    medical_notes: Optional[str] = None
+    profile_image_url: Optional[str] = None
+    invite_status: str
+    status: str
+    added_at: datetime
+
+
+class StudentCreateRequest(BaseModel):
+    name: str
+    date_of_birth: date
+    gender: str  # validated against master_data('gender') in endpoint
+    parent_mobile: Optional[str] = None
+    medical_notes: Optional[str] = None
+
+
+class StudentUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    medical_notes: Optional[str] = None

@@ -19,7 +19,11 @@ export type MasterDataGroup =
   | 'board'
   | 'language'
   | 'rejection_category'
-  | 'suspension_reason';
+  | 'suspension_reason'
+  | 'gender'
+  | 'class_days'
+  | 'class_level'
+  | 'subject';
 
 export const GROUP_LABELS: Record<MasterDataGroup, string> = {
   category:           'Category',
@@ -32,6 +36,10 @@ export const GROUP_LABELS: Record<MasterDataGroup, string> = {
   language:           'Language / Medium',
   rejection_category: 'Rejection Category',
   suspension_reason:  'Suspension Reason',
+  gender:             'Gender',
+  class_days:         'Class Days',
+  class_level:        'Class Level',
+  subject:            'Subject',
 };
 
 export const ALL_GROUPS: MasterDataGroup[] = [
@@ -45,6 +53,10 @@ export const ALL_GROUPS: MasterDataGroup[] = [
   'language',
   'rejection_category',
   'suspension_reason',
+  'gender',
+  'class_days',
+  'class_level',
+  'subject',
 ];
 
 export const getMasterData = (group?: MasterDataGroup, includeInactive = false) =>

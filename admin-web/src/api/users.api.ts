@@ -1,22 +1,30 @@
 import apiClient from './client';
 import type { PagedResponse } from './centers.api';
 
+export interface UserRole {
+  role: string;
+  center_id: string | null;
+}
+
 export interface UserSummary {
   id: string;
   name: string;
-  email: string;
-  mobile: string | null;
+  email: string | null;
+  mobile_number: string | null;
   status: string;
-  roles: string[];
+  roles: UserRole[];
   created_date: string;
 }
 
 export interface UserDetail extends UserSummary {
+  preferred_language: string;
+  device_platform: string | null;
+  failed_login_attempts: number;
+  last_login_at: string | null;
   center_connections: Array<{
     center_id: string;
     center_name: string;
     role: string;
-    status: string;
   }>;
 }
 
@@ -43,6 +51,54 @@ export const getUserDetail = (id: string) =>
 
 export const updateUserStatus = (id: string, body: { status: string; reason?: string }) =>
   apiClient.patch(`/admin/users/${id}/status`, body).then((r) => r.data);
+
+export const updateUser = (id: string, body: { name?: string; email?: string }) =>
+  apiClient.patch<{ message: string }>(`/admin/users/${id}`, body).then((r) => r.data);
+
+export const resetUserPassword = (id: string) =>
+  apiClient.post<{ message: string; data: { reset_link: string } }>(`/admin/users/${id}/reset-password`).then((r) => r.data);
+
+export const createUser = (body: {
+  name: string; email: string; mobile_number: string;
+  role?: string; center_id?: string;
+}) => apiClient.post<{ message: string; data: { user_id: string; reset_link: string } }>('/admin/users', body).then((r) => r.data);
+
+export const deleteUser = (id: string) =>
+  apiClient.delete<{ message: string }>(`/admin/users/${id}`).then((r) => r.data);
+
+export const addUserRole = (id: string, body: { role: string; center_id?: string }) =>
+  apiClient.post<{ message: string }>(`/admin/users/${id}/roles`, body).then((r) => r.data);
+
+export const removeUserRole = (id: string, role: string, center_id?: string | null) =>
+  apiClient.delete<{ message: string }>(`/admin/users/${id}/roles`, {
+    params: { role, ...(center_id ? { center_id } : {}) },
+  }).then((r) => r.data);
+
+export const getUserStats = () =>
+  apiClient.get<{
+    total: number; active: number; suspended: number;
+    by_role: Record<string, number>;
+  }>('/admin/users/stats').then((r) => r.data);
+
+export interface StudentCenterLink {
+  center_id: string;
+  center_name: string;
+  link_status: string;
+  invite_status: string;
+  enrolled_at: string | null;
+}
+
+export interface ParentStudent {
+  id: string;
+  name: string;
+  date_of_birth: string | null;
+  gender: string | null;
+  profile_image_url: string | null;
+  centers: StudentCenterLink[];
+}
+
+export const getUserStudents = (id: string) =>
+  apiClient.get<ParentStudent[]>(`/admin/users/${id}/students`).then((r) => r.data);
 
 export const getUnlinkRequests = (params: { page?: number; size?: number }) =>
   apiClient

@@ -28,6 +28,31 @@ class UserStatusUpdate(BaseModel):
     reason: Optional[str] = None
 
 
+class UserUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+
+class UserCreateRequest(BaseModel):
+    name: str
+    email: str
+    mobile_number: str
+    role: Optional[str] = None          # Admin | Owner | Teacher | Parent | Staff
+    center_id: Optional[uuid.UUID] = None  # required when role is center-scoped
+
+
+class UserRoleRequest(BaseModel):
+    role: str
+    center_id: Optional[uuid.UUID] = None
+
+
+class UserStatsResponse(BaseModel):
+    total: int
+    active: int
+    suspended: int
+    by_role: dict  # {Admin: N, Owner: N, Teacher: N, Parent: N, Staff: N}
+
+
 class UnlinkRequestSummary(BaseModel):
     id: uuid.UUID
     parent_id: uuid.UUID

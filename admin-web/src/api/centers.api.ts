@@ -55,6 +55,11 @@ export interface CenterDetail {
   trial_ends_at: string | null;
   suspended_at: string | null;
   data_purge_at: string | null;
+  // owner mapping
+  owner_id: string | null;
+  owner_user_name: string | null;
+  owner_user_email: string | null;
+  owner_user_mobile: string | null;
 }
 
 export interface CenterUser {
@@ -103,6 +108,9 @@ export const getCenters = (params: {
   page?: number;
   size?: number;
 }) => apiClient.get<PagedResponse<CenterSummary>>('/admin/centers', { params }).then((r) => r.data);
+
+export const getAllCenters = () =>
+  apiClient.get<{ id: string; name: string; city: string }[]>('/admin/centers/all').then((r) => r.data);
 
 export const getCenterDetail = (id: string) =>
   apiClient.get<CenterDetail>(`/admin/centers/${id}`).then((r) => r.data);
@@ -193,6 +201,14 @@ export interface BatchCreatePayload {
 
 export const createBatch = (id: string, body: BatchCreatePayload) =>
   apiClient.post<Batch>(`/admin/centers/${id}/batches`, body).then((r) => r.data);
+
+export const assignOwner = (centerId: string, userId: string) =>
+  apiClient
+    .patch<{ message: string; data: { owner_id: string; owner_name: string; owner_mobile: string; owner_email: string | null } }>(
+      `/admin/centers/${centerId}/assign-owner`,
+      { user_id: userId },
+    )
+    .then((r) => r.data);
 
 export const uploadCenterLogo = (id: string, file: File): Promise<string> => {
   const form = new FormData();
