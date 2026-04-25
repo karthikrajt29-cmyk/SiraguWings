@@ -202,6 +202,22 @@ export interface BatchCreatePayload {
 export const createBatch = (id: string, body: BatchCreatePayload) =>
   apiClient.post<Batch>(`/admin/centers/${id}/batches`, body).then((r) => r.data);
 
+export interface BatchUpdatePayload {
+  course_name?: string;
+  batch_name?: string;
+  category_type?: string | null;
+  class_days?: string;
+  start_time?: string;
+  end_time?: string;
+  strength_limit?: number | null;
+  fee_amount?: number;
+  teacher_id?: string | null;
+  is_active?: boolean;
+}
+
+export const updateBatch = (centerId: string, batchId: string, body: BatchUpdatePayload) =>
+  apiClient.patch<Batch>(`/admin/centers/${centerId}/batches/${batchId}`, body).then((r) => r.data);
+
 export const assignOwner = (centerId: string, userId: string) =>
   apiClient
     .patch<{ message: string; data: { owner_id: string; owner_name: string; owner_mobile: string; owner_email: string | null } }>(
@@ -209,6 +225,30 @@ export const assignOwner = (centerId: string, userId: string) =>
       { user_id: userId },
     )
     .then((r) => r.data);
+
+// ── Batch students ────────────────────────────────────────────────────────────
+
+export interface BatchStudent {
+  batch_student_id: string;
+  student_id: string;
+  name: string;
+  date_of_birth: string | null;
+  gender: string | null;
+  parent_name: string | null;
+  assigned_at: string;
+}
+
+export const getBatchStudents = (centerId: string, batchId: string) =>
+  apiClient.get<BatchStudent[]>(`/admin/centers/${centerId}/batches/${batchId}/students`).then(r => r.data);
+
+export const addBatchStudent = (centerId: string, batchId: string, studentId: string) =>
+  apiClient.post<{ message: string }>(`/admin/centers/${centerId}/batches/${batchId}/students`, { student_id: studentId }).then(r => r.data);
+
+export const removeBatchStudent = (centerId: string, batchId: string, studentId: string) =>
+  apiClient.delete<{ message: string }>(`/admin/centers/${centerId}/batches/${batchId}/students/${studentId}`).then(r => r.data);
+
+export const getCenterStudents = (centerId: string, search?: string) =>
+  apiClient.get<BatchStudent[]>(`/admin/centers/${centerId}/students`, { params: search ? { search } : {} }).then(r => r.data);
 
 export const uploadCenterLogo = (id: string, file: File): Promise<string> => {
   const form = new FormData();

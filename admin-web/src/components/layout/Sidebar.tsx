@@ -17,6 +17,7 @@ import ArticleRoundedIcon      from '@mui/icons-material/ArticleRounded';
 import SettingsRoundedIcon     from '@mui/icons-material/SettingsRounded';
 import LinkOffRoundedIcon      from '@mui/icons-material/LinkOffRounded';
 import MergeRoundedIcon        from '@mui/icons-material/MergeRounded';
+import SchoolRoundedIcon       from '@mui/icons-material/SchoolRounded';
 import LogoutRoundedIcon       from '@mui/icons-material/LogoutRounded';
 import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded';
 import FamilyRestroomRoundedIcon from '@mui/icons-material/FamilyRestroomRounded';
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { label: 'Users',             icon: <PeopleRoundedIcon />,             path: '/users' },
   { label: 'Owner Management',  icon: <ManageAccountsRoundedIcon />,     path: '/owners' },
   { label: 'Parent Management', icon: <FamilyRestroomRoundedIcon />,     path: '/parents' },
+  { label: 'Student Management',icon: <SchoolRoundedIcon />,             path: '/student-management' },
   { label: 'Centers',           icon: <BusinessRoundedIcon />,           path: '/centers' },
   { label: 'Subscription',      icon: <CardMembershipRoundedIcon />,     path: '/subscription' },
   { label: 'Billing',           icon: <ReceiptRoundedIcon />,            path: '/billing' },

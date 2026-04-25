@@ -17,6 +17,7 @@ import InvoicesPage from './pages/billing/InvoicesPage';
 import FeedModerationPage from './pages/content/FeedModerationPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import DuplicatesPage from './pages/students/DuplicatesPage';
+import StudentManagementPage from './pages/students/StudentManagementPage';
 import OwnerManagementPage from './pages/owners/OwnerManagementPage';
 import ParentManagementPage from './pages/parents/ParentManagementPage';
 import SubscriptionPage from './pages/subscription/SubscriptionPage';
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="content" element={<FeedModerationPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="students" element={<DuplicatesPage />} />
+              <Route path="student-management" element={<StudentManagementPage />} />
               <Route path="subscription" element={<SubscriptionPage />} />
               <Route path="subscription/manage" element={<SubscriptionManagePage />} />
               <Route path="owners" element={<OwnerManagementPage />} />

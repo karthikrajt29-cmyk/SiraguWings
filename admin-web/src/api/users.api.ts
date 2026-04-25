@@ -100,6 +100,18 @@ export interface ParentStudent {
 export const getUserStudents = (id: string) =>
   apiClient.get<ParentStudent[]>(`/admin/users/${id}/students`).then((r) => r.data);
 
+export interface CreateStudentForParentBody {
+  name: string;
+  date_of_birth: string;   // YYYY-MM-DD
+  gender: string;
+  medical_notes?: string | null;
+}
+
+export const createStudentForParent = (parentId: string, body: CreateStudentForParentBody) =>
+  apiClient
+    .post<{ student_id: string; message: string }>(`/admin/users/${parentId}/students`, body)
+    .then((r) => r.data);
+
 export const getUnlinkRequests = (params: { page?: number; size?: number }) =>
   apiClient
     .get<PagedResponse<UnlinkRequestSummary>>('/admin/unlink-requests', { params })

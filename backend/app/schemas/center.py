@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, field_validator
@@ -181,7 +181,7 @@ class BatchSummary(BaseModel):
     batch_name: str
     category_type: Optional[str] = None
     class_days: str
-    start_time: str
+    start_time: str  # returned as "HH:MM" text from DB
     end_time: str
     strength_limit: Optional[int] = None
     fee_amount: float
@@ -191,13 +191,27 @@ class BatchSummary(BaseModel):
     created_date: datetime
 
 
+class BatchStudentSummary(BaseModel):
+    batch_student_id: uuid.UUID
+    student_id: uuid.UUID
+    name: str
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    parent_name: Optional[str] = None
+    assigned_at: datetime
+
+
+class AddBatchStudentRequest(BaseModel):
+    student_id: uuid.UUID
+
+
 class BatchCreateRequest(BaseModel):
     course_name: str
     batch_name: str
     category_type: Optional[str] = None
     class_days: str
-    start_time: str   # "HH:MM"
-    end_time: str     # "HH:MM"
+    start_time: time  # "HH:MM" parsed to datetime.time for asyncpg
+    end_time: time
     strength_limit: Optional[int] = None
     fee_amount: float
     teacher_id: Optional[uuid.UUID] = None
@@ -208,8 +222,8 @@ class BatchUpdateRequest(BaseModel):
     batch_name: Optional[str] = None
     category_type: Optional[str] = None
     class_days: Optional[str] = None
-    start_time: Optional[str] = None
-    end_time: Optional[str] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
     strength_limit: Optional[int] = None
     fee_amount: Optional[float] = None
     teacher_id: Optional[uuid.UUID] = None
@@ -241,6 +255,14 @@ class TeacherUpdateRequest(BaseModel):
 
 # ── Student CRUD (owner-scoped) ────────────────────────────────────────────
 
+class StudentCenterLink(BaseModel):
+    center_id: uuid.UUID
+    center_name: str
+    link_status: str        # "Active" | "Removed"
+    invite_status: str
+    enrolled_at: datetime
+
+
 class StudentSummary(BaseModel):
     id: uuid.UUID
     name: str
@@ -254,6 +276,7 @@ class StudentSummary(BaseModel):
     invite_status: str
     status: str
     added_at: datetime
+    centers: List[StudentCenterLink] = []
 
 
 class StudentCreateRequest(BaseModel):
@@ -269,3 +292,20 @@ class StudentUpdateRequest(BaseModel):
     date_of_birth: Optional[date] = None
     gender: Optional[str] = None
     medical_notes: Optional[str] = None
+
+
+class StudentBulkDeleteRequest(BaseModel):
+    student_ids: List[uuid.UUID]
+
+
+class StudentEnrollRequest(BaseModel):
+    center_id: uuid.UUID
+    student_ids: List[uuid.UUID]
+
+
+class StudentStatsResponse(BaseModel):
+    total: int
+    active: int
+    with_parent: int
+    without_parent: int
+    by_gender: dict

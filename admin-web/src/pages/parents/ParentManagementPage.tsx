@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Box, Typography, Card, CardContent, Grid, Chip, Avatar,
+  Box, Typography, Card, CardContent, Grid, Chip, Avatar, Button,
   Table, TableBody, TableCell, TableHead, TableRow, TableContainer,
   Paper, TextField, InputAdornment, Drawer, List, ListItem, ListItemText,
   Divider, Stack, CircularProgress, Alert, IconButton,
@@ -13,11 +13,14 @@ import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import CakeRoundedIcon from '@mui/icons-material/CakeRounded';
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import { useQuery } from '@tanstack/react-query';
 import {
   getUsers, getUserDetail, getUserStudents,
   type UserSummary, type ParentStudent,
 } from '../../api/users.api';
+import AddStudentModal from '../../components/students/AddStudentModal';
+import { BRAND } from '../../theme';
 
 const STATUS_COLOR: Record<string, 'success' | 'error' | 'warning' | 'default'> = {
   Active: 'success',
@@ -106,6 +109,8 @@ function ParentDrawer({
   parent: UserSummary | null;
   onClose: () => void;
 }) {
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+
   const { data: detail, isLoading: loadingDetail } = useQuery({
     queryKey: ['user', parent?.id],
     queryFn: () => getUserDetail(parent!.id),
@@ -220,6 +225,20 @@ function ParentDrawer({
                   <ChildCareRoundedIcon fontSize="small" color="action" />
                 </Box>
 
+                <Button
+                  fullWidth size="small" variant="contained"
+                  startIcon={<AddRoundedIcon />}
+                  onClick={() => setAddStudentOpen(true)}
+                  sx={{
+                    mb: 1.5,
+                    background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+                    '&:hover': { background: `linear-gradient(135deg, ${BRAND.primaryDark}, ${BRAND.primary})` },
+                    fontSize: 13,
+                  }}
+                >
+                  Add Student
+                </Button>
+
                 {loadingStudents ? (
                   <Box display="flex" justifyContent="center" py={2}>
                     <CircularProgress size={20} />
@@ -235,6 +254,14 @@ function ParentDrawer({
             )}
           </Box>
         </Box>
+      )}
+
+      {parent && (
+        <AddStudentModal
+          open={addStudentOpen}
+          parentId={parent.id}
+          onClose={() => setAddStudentOpen(false)}
+        />
       )}
     </Drawer>
   );

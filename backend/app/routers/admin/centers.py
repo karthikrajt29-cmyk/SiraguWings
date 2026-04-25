@@ -11,10 +11,13 @@ from app.core.audit import write_audit_log
 from app.database import get_db
 from app.dependencies import CurrentUser, require_admin
 from app.schemas.center import (
+    AddBatchStudentRequest,
     AddCenterUserRequest,
     AssignOwnerRequest,
     BatchCreateRequest,
+    BatchStudentSummary,
     BatchSummary,
+    BatchUpdateRequest,
     BulkApproveRequest,
     CenterApproveRequest,
     CenterCreateRequest,
@@ -709,6 +712,54 @@ async def get_center_users(
 
 
 # ---------------------------------------------------------------------------
+# CENTER STUDENTS LIST (for batch-student assignment search)
+# ---------------------------------------------------------------------------
+@router.get("/{center_id}/students", response_model=list[BatchStudentSummary])
+async def get_center_students(
+    center_id: uuid.UUID,
+    search: Optional[str] = None,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> list[BatchStudentSummary]:
+    await get_center_or_404(db, center_id, select="id")
+    where = "cs.center_id=$1 AND cs.is_deleted=FALSE AND s.is_deleted=FALSE"
+    params: list = [center_id]
+    if search:
+        where += f" AND LOWER(s.name) LIKE $2"
+        params.append(f"%{search.lower()}%")
+    rows = await db.fetch(
+        f"""
+        SELECT cs.id AS batch_student_id,
+               s.id  AS student_id,
+               s.name,
+               s.date_of_birth,
+               s.gender,
+               u.name AS parent_name,
+               cs.added_at AS assigned_at
+        FROM center_student cs
+        JOIN student s ON s.id = cs.student_id AND s.is_deleted = FALSE
+        LEFT JOIN "user" u ON u.id = s.parent_id AND u.is_deleted = FALSE
+        WHERE {where}
+        ORDER BY s.name
+        LIMIT 50
+        """,
+        *params,
+    )
+    return [
+        BatchStudentSummary(
+            batch_student_id=r["batch_student_id"],
+            student_id=r["student_id"],
+            name=r["name"],
+            date_of_birth=r["date_of_birth"],
+            gender=r["gender"],
+            parent_name=r["parent_name"],
+            assigned_at=r["assigned_at"],
+        )
+        for r in rows
+    ]
+
+
+# ---------------------------------------------------------------------------
 # ADD USER TO CENTER
 # ---------------------------------------------------------------------------
 @router.post("/{center_id}/users", response_model=SuccessResponse, status_code=201)
@@ -911,6 +962,197 @@ async def create_batch(
         is_active=r["is_active"], teacher_name=r["teacher_name"],
         teacher_id=r["teacher_id"], created_date=r["created_date"],
     )
+
+
+# ---------------------------------------------------------------------------
+# BATCH UPDATE
+# ---------------------------------------------------------------------------
+@router.patch("/{center_id}/batches/{batch_id}", response_model=BatchSummary)
+async def update_batch(
+    center_id: uuid.UUID,
+    batch_id: uuid.UUID,
+    request: BatchUpdateRequest,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> BatchSummary:
+    await get_center_or_404(db, center_id, select="id")
+
+    batch = await db.fetchrow(
+        "SELECT id FROM batch WHERE id=$1 AND center_id=$2 AND is_deleted=FALSE",
+        batch_id, center_id,
+    )
+    if not batch:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Batch not found.")
+
+    if request.teacher_id:
+        ct = await db.fetchrow(
+            "SELECT id FROM center_teacher WHERE id=$1 AND center_id=$2 AND is_deleted=FALSE",
+            request.teacher_id, center_id,
+        )
+        if not ct:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Selected teacher does not belong to this center.")
+
+    # Build dynamic SET clause from non-None fields
+    updates = request.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields provided to update.")
+
+    set_parts = []
+    params: list = []
+    idx = 1
+    for field, val in updates.items():
+        if field in ("start_time", "end_time"):
+            set_parts.append(f"{field} = ${idx}::time")
+        else:
+            set_parts.append(f"{field} = ${idx}")
+        params.append(val)
+        idx += 1
+    set_parts.append(f"modified_by = ${idx}")
+    params.append(admin.user_id)
+    idx += 1
+    set_parts.append(f"modified_date = NOW() AT TIME ZONE 'UTC'")
+
+    params.append(batch_id)
+    await db.execute(
+        f"UPDATE batch SET {', '.join(set_parts)} WHERE id = ${idx}",
+        *params,
+    )
+
+    r = await db.fetchrow(
+        """
+        SELECT b.id, b.course_name, b.batch_name, b.category_type,
+               b.class_days, b.start_time::text, b.end_time::text,
+               b.strength_limit, b.fee_amount, b.is_active,
+               b.created_date, b.teacher_id,
+               u.name AS teacher_name
+        FROM batch b
+        LEFT JOIN center_teacher ct ON ct.id = b.teacher_id AND ct.is_deleted = FALSE
+        LEFT JOIN "user" u          ON u.id  = ct.user_id
+        WHERE b.id = $1
+        """,
+        batch_id,
+    )
+    return BatchSummary(
+        id=r["id"], course_name=r["course_name"], batch_name=r["batch_name"],
+        category_type=r["category_type"], class_days=r["class_days"],
+        start_time=r["start_time"], end_time=r["end_time"],
+        strength_limit=r["strength_limit"], fee_amount=float(r["fee_amount"]),
+        is_active=r["is_active"], teacher_name=r["teacher_name"],
+        teacher_id=r["teacher_id"], created_date=r["created_date"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# BATCH STUDENTS — list / add / remove
+# ---------------------------------------------------------------------------
+@router.get("/{center_id}/batches/{batch_id}/students", response_model=list[BatchStudentSummary])
+async def list_batch_students(
+    center_id: uuid.UUID,
+    batch_id: uuid.UUID,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> list[BatchStudentSummary]:
+    await get_center_or_404(db, center_id, select="id")
+    rows = await db.fetch(
+        """
+        SELECT bs.id AS batch_student_id,
+               s.id  AS student_id,
+               s.name,
+               s.date_of_birth,
+               s.gender,
+               u.name AS parent_name,
+               bs.assigned_at
+        FROM batch_student bs
+        JOIN student s ON s.id = bs.student_id AND s.is_deleted = FALSE
+        LEFT JOIN "user" u ON u.id = s.parent_id AND u.is_deleted = FALSE
+        WHERE bs.batch_id = $1 AND bs.is_deleted = FALSE AND bs.is_active = TRUE
+        ORDER BY s.name
+        """,
+        batch_id,
+    )
+    return [
+        BatchStudentSummary(
+            batch_student_id=r["batch_student_id"],
+            student_id=r["student_id"],
+            name=r["name"],
+            date_of_birth=r["date_of_birth"],
+            gender=r["gender"],
+            parent_name=r["parent_name"],
+            assigned_at=r["assigned_at"],
+        )
+        for r in rows
+    ]
+
+
+@router.post("/{center_id}/batches/{batch_id}/students", response_model=SuccessResponse, status_code=201)
+async def add_batch_student(
+    center_id: uuid.UUID,
+    batch_id: uuid.UUID,
+    request: AddBatchStudentRequest,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> SuccessResponse:
+    await get_center_or_404(db, center_id, select="id")
+
+    # Student must be linked to this center
+    cs = await db.fetchrow(
+        "SELECT id FROM center_student WHERE center_id=$1 AND student_id=$2 AND is_deleted=FALSE",
+        center_id, request.student_id,
+    )
+    if not cs:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Student is not enrolled in this center. Link the student to the center first.",
+        )
+
+    existing = await db.fetchrow(
+        "SELECT id FROM batch_student WHERE batch_id=$1 AND student_id=$2 AND is_deleted=FALSE AND is_active=TRUE",
+        batch_id, request.student_id,
+    )
+    if existing:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Student is already assigned to this batch.")
+
+    student = await db.fetchrow(
+        "SELECT name FROM student WHERE id=$1 AND is_deleted=FALSE", request.student_id,
+    )
+    if not student:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found.")
+
+    await db.execute(
+        """
+        INSERT INTO batch_student (id, batch_id, student_id, assigned_at,
+                                   created_by, created_date, is_active, is_deleted,
+                                   version_number, source_system)
+        VALUES (gen_random_uuid(), $1, $2, NOW() AT TIME ZONE 'UTC',
+                $3, NOW() AT TIME ZONE 'UTC', TRUE, FALSE, 1, 'AdminPortal')
+        """,
+        batch_id, request.student_id, admin.user_id,
+    )
+    return SuccessResponse(message=f"{student['name']} added to batch.")
+
+
+@router.delete("/{center_id}/batches/{batch_id}/students/{student_id}", response_model=SuccessResponse)
+async def remove_batch_student(
+    center_id: uuid.UUID,
+    batch_id: uuid.UUID,
+    student_id: uuid.UUID,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> SuccessResponse:
+    await get_center_or_404(db, center_id, select="id")
+    result = await db.execute(
+        """
+        UPDATE batch_student
+        SET is_active=FALSE, is_deleted=TRUE, removed_at=NOW() AT TIME ZONE 'UTC',
+            modified_by=$3, modified_date=NOW() AT TIME ZONE 'UTC'
+        WHERE batch_id=$1 AND student_id=$2 AND is_deleted=FALSE AND is_active=TRUE
+        """,
+        batch_id, student_id, admin.user_id,
+    )
+    if result == "UPDATE 0":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found in this batch.")
+    student = await db.fetchrow("SELECT name FROM student WHERE id=$1", student_id)
+    return SuccessResponse(message=f"{student['name'] if student else 'Student'} removed from batch.")
 
 
 # ---------------------------------------------------------------------------

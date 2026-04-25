@@ -5,6 +5,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Collapse,
   Divider,
   Grid,
   IconButton,
@@ -39,19 +40,30 @@ import OpenInNewRoundedIcon     from '@mui/icons-material/OpenInNewRounded';
 import StickyNote2RoundedIcon   from '@mui/icons-material/StickyNote2Rounded';
 import CameraAltRoundedIcon     from '@mui/icons-material/CameraAltRounded';
 import MarkunreadMailboxRoundedIcon from '@mui/icons-material/MarkunreadMailboxRounded';
+import SchoolRoundedIcon           from '@mui/icons-material/SchoolRounded';
+import PersonRemoveRoundedIcon     from '@mui/icons-material/PersonRemoveRounded';
+import ExpandMoreRoundedIcon       from '@mui/icons-material/ExpandMoreRounded';
+import ExpandLessRoundedIcon       from '@mui/icons-material/ExpandLessRounded';
+import PersonSearchRoundedIcon     from '@mui/icons-material/PersonSearchRounded';
 import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   approveCenter,
   assignOwner,
   getCenterBatches,
+  getCenterStudents,
   getCenterUsers,
+  getBatchStudents,
+  addBatchStudent,
+  removeBatchStudent,
   rejectCenter,
   reinstateCenter,
   reviewCenter,
   suspendCenter,
   updateCenter,
   uploadCenterLogo,
+  type Batch,
+  type BatchStudent,
   type CenterDetail,
   type CenterUpdatePayload,
 } from '../../api/centers.api';
@@ -180,6 +192,270 @@ function FacilityChips({ value }: { value: string | null }) {
           }} />
       ))}
     </Stack>
+  );
+}
+
+/* ─────────────────────────────────────────────────
+   BATCH CARD  (self-contained: fetches + manages its own students)
+───────────────────────────────────────────────── */
+function BatchCard({ batch, centerId }: { batch: Batch; centerId: string }) {
+  const qc = useQueryClient();
+  const { showSnack } = useSnackbar();
+  const [expanded, setExpanded]           = useState(false);
+  const [editOpen, setEditOpen]           = useState(false);
+  const [addOpen, setAddOpen]             = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<BatchStudent | null>(null);
+
+  const { data: students = [], isLoading: studentsLoading } = useQuery({
+    queryKey: ['batch-students', batch.id],
+    queryFn: () => getBatchStudents(centerId, batch.id),
+    enabled: expanded,
+  });
+
+  const { data: centerStudents = [], isFetching: searching } = useQuery({
+    queryKey: ['center-students-search', centerId, studentSearch],
+    queryFn: () => getCenterStudents(centerId, studentSearch),
+    enabled: addOpen && studentSearch.length >= 2,
+  });
+
+  const addMut = useMutation({
+    mutationFn: () => addBatchStudent(centerId, batch.id, selectedStudent!.student_id),
+    onSuccess: (d) => {
+      showSnack(d.message, 'success');
+      qc.invalidateQueries({ queryKey: ['batch-students', batch.id] });
+      setSelectedStudent(null); setStudentSearch(''); setAddOpen(false);
+    },
+    onError: (e: Error) => showSnack(e.message, 'error'),
+  });
+
+  const removeMut = useMutation({
+    mutationFn: (studentId: string) => removeBatchStudent(centerId, batch.id, studentId),
+    onSuccess: (d) => {
+      showSnack(d.message, 'success');
+      qc.invalidateQueries({ queryKey: ['batch-students', batch.id] });
+    },
+    onError: (e: Error) => showSnack(e.message, 'error'),
+  });
+
+  return (
+    <Box sx={{
+      borderRadius: 2.5, border: `1px solid ${BRAND.divider}`, bgcolor: '#FAFBFC',
+      overflow: 'hidden',
+      '&:hover': { borderColor: `${BRAND.primary}40`, boxShadow: '0 2px 10px rgba(15,30,53,0.07)' },
+      transition: 'all .15s',
+    }}>
+      {/* ── Batch header ── */}
+      <Box sx={{ p: 2 }}>
+        <Stack direction="row" alignItems="flex-start" gap={1}>
+          <Box flex={1} minWidth={0}>
+            <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+              <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: BRAND.textPrimary }}>
+                {batch.course_name}
+              </Typography>
+              <Chip label={batch.batch_name} size="small" sx={{ height: 18, fontSize: 11, fontWeight: 600, bgcolor: BRAND.primaryBg, color: BRAND.primary }} />
+              {batch.category_type && (
+                <Chip label={batch.category_type} size="small" sx={{ height: 18, fontSize: 11, bgcolor: 'rgba(139,92,246,0.1)', color: '#7C3AED' }} />
+              )}
+              {!batch.is_active && (
+                <Chip label="Inactive" size="small" sx={{ height: 18, fontSize: 11, bgcolor: 'rgba(156,163,175,0.15)', color: '#6B7280' }} />
+              )}
+            </Stack>
+            <Stack direction="row" gap={2.5} mt={0.75} flexWrap="wrap">
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                <CalendarMonthRoundedIcon sx={{ fontSize: 12, color: BRAND.textSecondary }} />
+                <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>{batch.class_days.split(',').join(' · ')}</Typography>
+              </Stack>
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                <ScheduleRoundedIcon sx={{ fontSize: 12, color: BRAND.textSecondary }} />
+                <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>{batch.start_time} – {batch.end_time}</Typography>
+              </Stack>
+              {batch.teacher_name && (
+                <Stack direction="row" alignItems="center" gap={0.5}>
+                  <PeopleRoundedIcon sx={{ fontSize: 12, color: BRAND.textSecondary }} />
+                  <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>{batch.teacher_name}</Typography>
+                </Stack>
+              )}
+            </Stack>
+          </Box>
+          <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+            <Stack direction="row" alignItems="center" gap={0.5} justifyContent="flex-end" mb={0.5}>
+              <Tooltip title="Edit batch">
+                <IconButton size="small" onClick={() => setEditOpen(true)}
+                  sx={{ color: BRAND.textSecondary, '&:hover': { bgcolor: BRAND.primaryBg, color: BRAND.primary } }}>
+                  <EditRoundedIcon sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+            <Stack direction="row" alignItems="center" gap={0.25} justifyContent="flex-end">
+              <CurrencyRupeeRoundedIcon sx={{ fontSize: 13, color: BRAND.textPrimary }} />
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: BRAND.textPrimary }}>
+                {batch.fee_amount.toLocaleString('en-IN')}
+              </Typography>
+            </Stack>
+            <Typography sx={{ fontSize: 10, color: BRAND.textSecondary, mt: 0.2 }}>per month</Typography>
+            {batch.strength_limit && (
+              <Typography sx={{ fontSize: 11, color: BRAND.textSecondary, mt: 0.5 }}>
+                Max {batch.strength_limit}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+
+        {/* ── Students toggle ── */}
+        <Box
+          onClick={() => setExpanded(v => !v)}
+          sx={{
+            mt: 1.5, display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer',
+            color: BRAND.primary, width: 'fit-content',
+          }}
+        >
+          <SchoolRoundedIcon sx={{ fontSize: 14 }} />
+          <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND.primary }}>
+            {expanded ? 'Hide students' : `Students${!studentsLoading && expanded ? ` (${students.length})` : ''}`}
+          </Typography>
+          {expanded ? <ExpandLessRoundedIcon sx={{ fontSize: 16 }} /> : <ExpandMoreRoundedIcon sx={{ fontSize: 16 }} />}
+        </Box>
+      </Box>
+
+      {/* ── Students section ── */}
+      <Collapse in={expanded}>
+        <Divider sx={{ borderColor: BRAND.divider }} />
+        <Box sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+
+          {/* add student row */}
+          {addOpen ? (
+            <Box sx={{ mb: 2, p: 1.5, borderRadius: 2, border: `1px solid ${BRAND.divider}`, bgcolor: '#fff' }}>
+              <Stack direction="row" alignItems="center" gap={1} mb={1}>
+                <PersonSearchRoundedIcon sx={{ fontSize: 16, color: BRAND.primary }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: BRAND.textPrimary }}>
+                  Add student to batch
+                </Typography>
+                <Box flex={1} />
+                <IconButton size="small" onClick={() => { setAddOpen(false); setSelectedStudent(null); setStudentSearch(''); }}>
+                  <CloseRoundedIcon sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Stack>
+              <Stack direction="row" gap={1} alignItems="flex-start">
+                <Autocomplete
+                  sx={{ flex: 1 }}
+                  options={centerStudents}
+                  getOptionLabel={(s) => s.name}
+                  filterOptions={(x) => x}
+                  loading={searching}
+                  value={selectedStudent}
+                  onChange={(_, v) => { setSelectedStudent(v); setStudentSearch(v?.name ?? ''); }}
+                  inputValue={studentSearch}
+                  onInputChange={(_, v, reason) => { if (reason !== 'reset') { setStudentSearch(v); if (!v) setSelectedStudent(null); } }}
+                  noOptionsText={studentSearch.length < 2 ? 'Type 2+ chars…' : 'No students found'}
+                  renderOption={(props, s) => (
+                    <Box component="li" {...props} key={s.student_id}>
+                      <Stack direction="row" alignItems="center" gap={1} py={0.25}>
+                        <Avatar sx={{ width: 26, height: 26, fontSize: 10, fontWeight: 700, bgcolor: BRAND.primaryBg, color: BRAND.primary }}>
+                          {s.name.charAt(0)}
+                        </Avatar>
+                        <Box>
+                          <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{s.name}</Typography>
+                          {s.parent_name && <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>Parent: {s.parent_name}</Typography>}
+                        </Box>
+                      </Stack>
+                    </Box>
+                  )}
+                  renderInput={(params) => (
+                    <TextField {...params} size="small" placeholder="Search student name…"
+                      InputProps={{ ...params.InputProps, endAdornment: <>{searching && <CircularProgress size={12} />}{params.InputProps.endAdornment}</> }}
+                    />
+                  )}
+                />
+                <Button
+                  variant="contained" size="small"
+                  disabled={!selectedStudent || addMut.isPending}
+                  onClick={() => addMut.mutate()}
+                  startIcon={addMut.isPending ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <PersonAddRoundedIcon sx={{ fontSize: 14 }} />}
+                  sx={{ background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`, fontSize: 12, py: 0.75, whiteSpace: 'nowrap' }}
+                >
+                  Add
+                </Button>
+              </Stack>
+            </Box>
+          ) : (
+            <Button size="small" startIcon={<PersonAddRoundedIcon sx={{ fontSize: 14 }} />}
+              onClick={() => setAddOpen(true)}
+              sx={{ mb: 1.5, fontSize: 12, color: BRAND.primary, fontWeight: 600, p: '4px 10px',
+                border: `1px dashed ${BRAND.primary}60`, borderRadius: 1.5,
+                '&:hover': { bgcolor: BRAND.primaryBg } }}>
+              Add Student
+            </Button>
+          )}
+
+          {/* student list */}
+          {studentsLoading ? (
+            <Box display="flex" justifyContent="center" py={2}>
+              <CircularProgress size={22} sx={{ color: BRAND.primary }} />
+            </Box>
+          ) : students.length === 0 ? (
+            <Box sx={{ py: 2.5, textAlign: 'center' }}>
+              <SchoolRoundedIcon sx={{ fontSize: 28, color: BRAND.divider, mb: 0.5 }} />
+              <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>No students assigned to this batch yet</Typography>
+            </Box>
+          ) : (
+            <Stack gap={1}>
+              {students.map((s) => (
+                <Box key={s.batch_student_id} sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.25,
+                  p: 1.25, borderRadius: 1.5, bgcolor: '#fff',
+                  border: `1px solid ${BRAND.divider}`,
+                }}>
+                  <Avatar sx={{ width: 32, height: 32, fontSize: 12, fontWeight: 700,
+                    bgcolor: BRAND.primaryBg, color: BRAND.primary, flexShrink: 0 }}>
+                    {s.name.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Box flex={1} minWidth={0}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND.textPrimary }} noWrap>
+                      {s.name}
+                    </Typography>
+                    <Stack direction="row" gap={1.5} flexWrap="wrap">
+                      {s.parent_name && (
+                        <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>
+                          Parent: {s.parent_name}
+                        </Typography>
+                      )}
+                      {s.gender && (
+                        <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>{s.gender}</Typography>
+                      )}
+                      {s.date_of_birth && (
+                        <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>
+                          DOB: {new Date(s.date_of_birth).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Box>
+                  <Tooltip title="Remove from batch">
+                    <IconButton size="small" onClick={() => removeMut.mutate(s.student_id)}
+                      disabled={removeMut.isPending}
+                      sx={{ color: '#EF4444', '&:hover': { bgcolor: '#FEE2E2' }, flexShrink: 0 }}>
+                      <PersonRemoveRoundedIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              ))}
+              <Typography sx={{ fontSize: 11, color: BRAND.textSecondary, mt: 0.5, textAlign: 'right' }}>
+                {students.length} student{students.length !== 1 ? 's' : ''} enrolled
+                {batch.strength_limit ? ` · ${batch.strength_limit - students.length} seat${batch.strength_limit - students.length !== 1 ? 's' : ''} remaining` : ''}
+              </Typography>
+            </Stack>
+          )}
+        </Box>
+      </Collapse>
+
+      {/* Edit batch modal */}
+      <AddBatchModal
+        open={editOpen}
+        centerId={centerId}
+        onClose={() => setEditOpen(false)}
+        editBatch={batch}
+      />
+    </Box>
   );
 }
 
@@ -1286,22 +1562,18 @@ export default function CenterDetailPanel({ center, onActionComplete }: Props) {
       ════════════════════════ */}
       {tab === 2 && (
         <Box sx={{ px: 3, pt: 2.5, pb: 3 }}>
-          {/* Batches tab header */}
           <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
             <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND.textPrimary }}>
               {batchesLoading ? 'Batches' : `${batches?.length ?? 0} ${(batches?.length ?? 0) === 1 ? 'batch' : 'batches'}`}
             </Typography>
-            <Button
-              size="small"
-              variant="contained"
+            <Button size="small" variant="contained"
               startIcon={<AddRoundedIcon sx={{ fontSize: 15 }} />}
               onClick={() => setAddBatchOpen(true)}
               sx={{
                 background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
                 '&:hover': { background: `linear-gradient(135deg, ${BRAND.primaryDark}, ${BRAND.primary})` },
                 fontSize: 12, py: 0.5,
-              }}
-            >
+              }}>
               Add Batch
             </Button>
           </Stack>
@@ -1322,75 +1594,9 @@ export default function CenterDetailPanel({ center, onActionComplete }: Props) {
               </Typography>
             </Box>
           ) : (
-            <Stack gap={1.5}>
+            <Stack gap={2}>
               {batches.map((b) => (
-                <Box key={b.id} sx={{
-                  p: 1.75, borderRadius: 2, border: `1px solid ${BRAND.divider}`,
-                  bgcolor: '#FAFBFC',
-                  '&:hover': { boxShadow: '0 2px 8px rgba(15,30,53,0.08)', borderColor: `${BRAND.primary}40` },
-                }}>
-                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1}>
-                    <Box flex={1} minWidth={0}>
-                      <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: BRAND.textPrimary }}>
-                          {b.course_name}
-                        </Typography>
-                        <Chip label={b.batch_name} size="small" sx={{
-                          height: 18, fontSize: 11, fontWeight: 600,
-                          bgcolor: BRAND.primaryBg, color: BRAND.primary,
-                        }} />
-                        {b.category_type && (
-                          <Chip label={b.category_type} size="small" sx={{
-                            height: 18, fontSize: 11,
-                            bgcolor: 'rgba(139,92,246,0.1)', color: '#7C3AED',
-                          }} />
-                        )}
-                        {!b.is_active && (
-                          <Chip label="Inactive" size="small" sx={{
-                            height: 18, fontSize: 11,
-                            bgcolor: 'rgba(156,163,175,0.15)', color: '#6B7280',
-                          }} />
-                        )}
-                      </Stack>
-
-                      <Stack direction="row" gap={2.5} mt={0.75} flexWrap="wrap">
-                        <Stack direction="row" alignItems="center" gap={0.5}>
-                          <CalendarMonthRoundedIcon sx={{ fontSize: 12, color: BRAND.textSecondary }} />
-                          <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>
-                            {b.class_days.split(',').join(' · ')}
-                          </Typography>
-                        </Stack>
-                        <Stack direction="row" alignItems="center" gap={0.5}>
-                          <ScheduleRoundedIcon sx={{ fontSize: 12, color: BRAND.textSecondary }} />
-                          <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>
-                            {b.start_time} – {b.end_time}
-                          </Typography>
-                        </Stack>
-                        {b.teacher_name && (
-                          <Stack direction="row" alignItems="center" gap={0.5}>
-                            <PeopleRoundedIcon sx={{ fontSize: 12, color: BRAND.textSecondary }} />
-                            <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>{b.teacher_name}</Typography>
-                          </Stack>
-                        )}
-                      </Stack>
-                    </Box>
-
-                    <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                      <Stack direction="row" alignItems="center" gap={0.25} justifyContent="flex-end">
-                        <CurrencyRupeeRoundedIcon sx={{ fontSize: 13, color: BRAND.textPrimary }} />
-                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: BRAND.textPrimary }}>
-                          {b.fee_amount.toLocaleString('en-IN')}
-                        </Typography>
-                      </Stack>
-                      <Typography sx={{ fontSize: 10, color: BRAND.textSecondary, mt: 0.2 }}>per month</Typography>
-                      {b.strength_limit && (
-                        <Typography sx={{ fontSize: 11, color: BRAND.textSecondary, mt: 0.5 }}>
-                          Max {b.strength_limit} students
-                        </Typography>
-                      )}
-                    </Box>
-                  </Stack>
-                </Box>
+                <BatchCard key={b.id} batch={b} centerId={center.id} />
               ))}
             </Stack>
           )}

@@ -14,12 +14,19 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import CloseRoundedIcon     from '@mui/icons-material/CloseRounded';
-import ClassRoundedIcon     from '@mui/icons-material/ClassRounded';
+import CloseRoundedIcon         from '@mui/icons-material/CloseRounded';
+import ClassRoundedIcon         from '@mui/icons-material/ClassRounded';
+import EditRoundedIcon          from '@mui/icons-material/EditRounded';
 import CurrencyRupeeRoundedIcon from '@mui/icons-material/CurrencyRupeeRounded';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createBatch, getCenterUsers, type BatchCreatePayload } from '../../api/centers.api';
+import {
+  createBatch,
+  updateBatch,
+  getCenterUsers,
+  type BatchCreatePayload,
+  type Batch,
+} from '../../api/centers.api';
 import { getMasterData } from '../../api/masterData.api';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { BRAND } from '../../theme';
@@ -28,6 +35,8 @@ interface Props {
   open: boolean;
   centerId: string;
   onClose: () => void;
+  /** Pass an existing batch to open in edit mode */
+  editBatch?: Batch | null;
 }
 
 const CUSTOM_DAYS_VALUE = 'Custom';
@@ -57,12 +66,37 @@ function SectionHead({ title }: { title: string }) {
   );
 }
 
-export default function AddBatchModal({ open, centerId, onClose }: Props) {
-  const [form, setForm]     = useState<BatchCreatePayload>({ ...EMPTY });
-  const [errors, setErrors] = useState<Errors>({});
+export default function AddBatchModal({ open, centerId, onClose, editBatch }: Props) {
+  const isEdit = !!editBatch;
+  const [form, setForm]           = useState<BatchCreatePayload>({ ...EMPTY });
+  const [errors, setErrors]       = useState<Errors>({});
   const [customDays, setCustomDays] = useState('');
   const { showSnack } = useSnackbar();
   const qc = useQueryClient();
+
+  /* Pre-fill form when editing */
+  useEffect(() => {
+    if (open && editBatch) {
+      const knownDayValues = DAYS_FALLBACK.map(d => d.value);
+      const isCustom = !knownDayValues.includes(editBatch.class_days);
+      setForm({
+        course_name:    editBatch.course_name,
+        batch_name:     editBatch.batch_name,
+        category_type:  editBatch.category_type ?? '',
+        class_days:     isCustom ? CUSTOM_DAYS_VALUE : editBatch.class_days,
+        start_time:     editBatch.start_time.slice(0, 5), // "HH:MM:SS" → "HH:MM"
+        end_time:       editBatch.end_time.slice(0, 5),
+        strength_limit: editBatch.strength_limit,
+        fee_amount:     editBatch.fee_amount,
+        teacher_id:     editBatch.teacher_id ?? null,
+      });
+      if (isCustom) setCustomDays(editBatch.class_days);
+    } else if (open && !editBatch) {
+      setForm({ ...EMPTY });
+      setCustomDays('');
+    }
+    setErrors({});
+  }, [open, editBatch]);
 
   const set = <K extends keyof BatchCreatePayload>(k: K, v: BatchCreatePayload[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -77,7 +111,7 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
   });
   const teachers = users.filter((u) => u.role === 'Teacher');
 
-  /* Class days from master_data (fallback to hardcoded list if API fails) */
+  /* Class days from master_data */
   const { data: classDaysRaw } = useQuery({
     queryKey: ['master-data', 'class_days'],
     queryFn: () => getMasterData('class_days'),
@@ -103,7 +137,7 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
     return Object.keys(next).length === 0;
   };
 
-  const mut = useMutation({
+  const createMut = useMutation({
     mutationFn: () => {
       const days = form.class_days === CUSTOM_DAYS_VALUE ? customDays.trim() : form.class_days;
       return createBatch(centerId, {
@@ -122,11 +156,44 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
     onError: (e: Error) => showSnack(e.message, 'error'),
   });
 
-  const handleClose = () => { setForm({ ...EMPTY }); setErrors({}); setCustomDays(''); onClose(); };
+  const editMut = useMutation({
+    mutationFn: () => {
+      const days = form.class_days === CUSTOM_DAYS_VALUE ? customDays.trim() : form.class_days;
+      return updateBatch(centerId, editBatch!.id, {
+        course_name:    form.course_name,
+        batch_name:     form.batch_name,
+        category_type:  form.category_type || null,
+        class_days:     days,
+        start_time:     form.start_time,
+        end_time:       form.end_time,
+        strength_limit: form.strength_limit || null,
+        fee_amount:     form.fee_amount,
+        teacher_id:     form.teacher_id || null,
+      });
+    },
+    onSuccess: () => {
+      showSnack('Batch updated', 'success');
+      qc.invalidateQueries({ queryKey: ['center-batches', centerId] });
+      handleClose();
+    },
+    onError: (e: Error) => showSnack(e.message, 'error'),
+  });
+
+  const isPending = createMut.isPending || editMut.isPending;
+
+  const handleClose = () => {
+    setForm({ ...EMPTY }); setErrors({}); setCustomDays('');
+    onClose();
+  };
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    if (isEdit) editMut.mutate(); else createMut.mutate();
+  };
 
   const field = (
     key: keyof BatchCreatePayload, label: string,
-    opts?: { type?: string; placeholder?: string; multiline?: boolean }
+    opts?: { type?: string; placeholder?: string }
   ) => (
     <TextField
       label={label} size="small" fullWidth
@@ -134,7 +201,6 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
       onChange={(e) => set(key, e.target.value as never)}
       error={!!errors[key]} helperText={errors[key]}
       type={opts?.type} placeholder={opts?.placeholder}
-      multiline={opts?.multiline}
     />
   );
 
@@ -151,14 +217,20 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
               background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <ClassRoundedIcon sx={{ fontSize: 17, color: '#fff' }} />
+              {isEdit
+                ? <EditRoundedIcon sx={{ fontSize: 17, color: '#fff' }} />
+                : <ClassRoundedIcon sx={{ fontSize: 17, color: '#fff' }} />}
             </Box>
             <Box>
-              <Typography sx={{ fontSize: 15, fontWeight: 700, color: BRAND.textPrimary }}>Add Batch</Typography>
-              <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>Create a new class batch</Typography>
+              <Typography sx={{ fontSize: 15, fontWeight: 700, color: BRAND.textPrimary }}>
+                {isEdit ? 'Edit Batch' : 'Add Batch'}
+              </Typography>
+              <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>
+                {isEdit ? `Editing: ${editBatch?.course_name} · ${editBatch?.batch_name}` : 'Create a new class batch'}
+              </Typography>
             </Box>
           </Stack>
-          <IconButton size="small" onClick={handleClose} disabled={mut.isPending}>
+          <IconButton size="small" onClick={handleClose} disabled={isPending}>
             <CloseRoundedIcon fontSize="small" />
           </IconButton>
         </Stack>
@@ -167,7 +239,7 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
       <DialogContent sx={{ px: 2.5, py: 2.5, overflowY: 'auto' }}>
         <Stack gap={3}>
 
-          {/* Course & Batch name */}
+          {/* Batch Details */}
           <Box>
             <SectionHead title="Batch Details" />
             <Grid container spacing={2}>
@@ -294,22 +366,26 @@ export default function AddBatchModal({ open, centerId, onClose }: Props) {
         display: 'flex', justifyContent: 'flex-end', gap: 1.5,
         bgcolor: BRAND.surface,
       }}>
-        <Button variant="outlined" onClick={handleClose} disabled={mut.isPending}
+        <Button variant="outlined" onClick={handleClose} disabled={isPending}
           sx={{ borderColor: BRAND.divider, color: BRAND.textPrimary, fontSize: 13 }}>
           Cancel
         </Button>
         <Button
           variant="contained"
-          onClick={() => { if (validate()) mut.mutate(); }}
-          disabled={mut.isPending}
-          startIcon={mut.isPending ? <CircularProgress size={13} sx={{ color: '#fff' }} /> : <ClassRoundedIcon />}
+          onClick={handleSubmit}
+          disabled={isPending}
+          startIcon={
+            isPending
+              ? <CircularProgress size={13} sx={{ color: '#fff' }} />
+              : isEdit ? <EditRoundedIcon /> : <ClassRoundedIcon />
+          }
           sx={{
             background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
             '&:hover': { background: `linear-gradient(135deg, ${BRAND.primaryDark}, ${BRAND.primary})` },
             fontSize: 13, minWidth: 130,
           }}
         >
-          {mut.isPending ? 'Creating…' : 'Create Batch'}
+          {isPending ? (isEdit ? 'Saving…' : 'Creating…') : isEdit ? 'Save Changes' : 'Create Batch'}
         </Button>
       </Box>
     </Dialog>

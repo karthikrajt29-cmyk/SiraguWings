@@ -327,7 +327,7 @@ async def get_user_students(
         """
         SELECT s.id, s.name, s.date_of_birth, s.gender, s.profile_image_url,
                cs.center_id, c.name AS center_name, cs.status AS link_status,
-               cs.invite_status, cs.enrolled_at
+               cs.invite_status, cs.added_at AS enrolled_at
         FROM student s
         LEFT JOIN center_student cs ON cs.student_id = s.id AND cs.is_deleted = FALSE
         LEFT JOIN center c ON c.id = cs.center_id AND c.is_deleted = FALSE
@@ -357,6 +357,82 @@ async def get_user_students(
                 "enrolled_at": r["enrolled_at"].isoformat() if r["enrolled_at"] else None,
             })
     return list(result.values())
+
+
+# ---------------------------------------------------------------------------
+# CREATE student under a specific parent
+# ---------------------------------------------------------------------------
+@router.post("/{user_id}/students", status_code=201)
+async def create_student_for_parent(
+    user_id: uuid.UUID,
+    request: dict,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> dict:
+    """Create a student record with parent_id pre-set to {user_id}."""
+    from datetime import date as _date
+
+    # Verify the parent user exists and has Parent role
+    parent = await db.fetchrow(
+        """
+        SELECT u.id, u.name FROM "user" u
+        WHERE u.id = $1 AND u.is_deleted = FALSE
+          AND EXISTS (
+              SELECT 1 FROM user_role ur
+              WHERE ur.user_id = u.id AND ur.role = 'Parent'
+                AND ur.is_active = TRUE AND ur.is_deleted = FALSE
+          )
+        """,
+        user_id,
+    )
+    if not parent:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "Parent user not found or does not have Parent role.",
+        )
+
+    name = (request.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "name is required.")
+
+    dob_raw = request.get("date_of_birth")
+    if not dob_raw:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "date_of_birth is required.")
+    try:
+        dob = _date.fromisoformat(dob_raw) if isinstance(dob_raw, str) else dob_raw
+    except ValueError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "date_of_birth must be YYYY-MM-DD.")
+
+    gender = request.get("gender")
+    if not gender:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "gender is required.")
+    g_row = await db.fetchrow(
+        """SELECT 1 FROM siraguwin.master_data
+           WHERE group_name='gender' AND value=$1
+             AND is_active=TRUE AND is_deleted=FALSE""",
+        gender,
+    )
+    if not g_row:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Invalid gender '{gender}'. Allowed values come from master_data('gender').",
+        )
+
+    student_id = uuid.uuid4()
+    await db.execute(
+        """
+        INSERT INTO student
+            (id, parent_id, name, date_of_birth, gender, medical_notes,
+             created_by_path, created_by, created_date, is_active, is_deleted,
+             version_number, source_system)
+        VALUES
+            ($1, $2, $3, $4, $5, $6, 'Parent', $7, NOW() AT TIME ZONE 'UTC',
+             TRUE, FALSE, 1, 'AdminPortal')
+        """,
+        student_id, user_id, name, dob, gender, request.get("medical_notes"),
+        admin.user_id,
+    )
+    return {"student_id": str(student_id), "message": f"Student created under {parent['name']}."}
 
 
 # ---------------------------------------------------------------------------
