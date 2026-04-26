@@ -215,11 +215,11 @@ export default function AddStudentModal({ open, onClose, parentId, editStudent }
             {!isParentScoped && !isEdit && (
               <Grid item xs={12}>
                 <TextField
-                  label="Parent Mobile (optional)" size="small" fullWidth
+                  label="Parent Mobile" size="small" fullWidth
                   value={form.parent_mobile}
                   onChange={(e) => set('parent_mobile', e.target.value)}
                   placeholder="e.g. 9876543210"
-                  helperText="If a Parent user with this mobile exists, the student will be linked to them."
+                  helperText="Required: an existing Parent user with this exact mobile is linked. To pick from a list, open Add Student from a parent's profile."
                 />
               </Grid>
             )}

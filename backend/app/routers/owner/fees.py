@@ -54,6 +54,12 @@ class FeeUpdateRequest(BaseModel):
     notes: Optional[str] = Field(None, max_length=500)
 
 
+class GenerateFromBatchesRequest(BaseModel):
+    batch_ids: list[uuid.UUID] = Field(min_length=1)
+    due_date: date_type
+    notes: Optional[str] = Field(None, max_length=500)
+
+
 class PaymentCreateRequest(BaseModel):
     mode: Literal["UPI", "Card", "NetBanking", "Cash", "BankTransfer"]
     amount_paid: Decimal = Field(gt=0)
@@ -344,6 +350,81 @@ async def create_fees_bulk_by_batch(
             )
             created += 1
     return {"created": created}
+
+
+# ---------------------------------------------------------------------------
+# GENERATE fees from batch fee_amount (automatic monthly billing)
+# ---------------------------------------------------------------------------
+@router.post("/centers/{center_id}/fees/generate-from-batches", status_code=201)
+async def generate_fees_from_batches(
+    center_id: uuid.UUID,
+    request: GenerateFromBatchesRequest,
+    db: asyncpg.Connection = Depends(get_db),
+    owner: CurrentUser = Depends(require_owner),
+) -> dict:
+    """Create one fee per student per batch using each batch's configured fee_amount.
+    Skips student-batch pairs that already have a fee in the same calendar month."""
+    assert_owns_center(center_id, owner)
+
+    initial_status = "Pending" if request.due_date >= date_type.today() else "Overdue"
+    total_created = 0
+    total_skipped = 0
+    batch_details = []
+
+    async with db.transaction():
+        for batch_id in request.batch_ids:
+            batch = await db.fetchrow(
+                "SELECT id, batch_name, course_name, fee_amount FROM batch WHERE id=$1 AND center_id=$2 AND is_deleted=FALSE",
+                batch_id, center_id,
+            )
+            if not batch:
+                continue
+
+            students = await db.fetch(
+                """SELECT bs.student_id FROM batch_student bs
+                   WHERE bs.batch_id=$1 AND bs.is_deleted=FALSE AND bs.is_active=TRUE""",
+                batch_id,
+            )
+
+            created = 0
+            skipped = 0
+            for s in students:
+                existing = await db.fetchrow(
+                    """SELECT 1 FROM fee
+                       WHERE student_id=$1 AND batch_id=$2 AND is_deleted=FALSE
+                         AND date_trunc('month', due_date) = date_trunc('month', $3::date)""",
+                    s["student_id"], batch_id, request.due_date,
+                )
+                if existing:
+                    skipped += 1
+                    continue
+                await db.execute(
+                    """INSERT INTO fee (id, center_id, student_id, batch_id, amount, due_date,
+                                        status, notes, created_by, created_date,
+                                        is_active, is_deleted, version_number, source_system)
+                       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5,
+                               $6, $7, $8, NOW() AT TIME ZONE 'UTC',
+                               TRUE, FALSE, 1, 'OwnerPortal')""",
+                    center_id, s["student_id"], batch_id,
+                    batch["fee_amount"], request.due_date, initial_status,
+                    request.notes, owner.user_id,
+                )
+                created += 1
+
+            total_created += created
+            total_skipped += skipped
+            batch_details.append({
+                "batch_id": str(batch_id),
+                "batch_name": f"{batch['course_name']} — {batch['batch_name']}",
+                "created": created,
+                "skipped": skipped,
+            })
+
+    return {
+        "created": total_created,
+        "skipped": total_skipped,
+        "batches": batch_details,
+    }
 
 
 # ---------------------------------------------------------------------------

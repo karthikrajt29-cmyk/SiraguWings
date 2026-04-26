@@ -2,15 +2,15 @@ import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
+  CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogTitle,
   Grid,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
+import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   type CenterDetail,
@@ -18,6 +18,7 @@ import {
 } from '../../api/centers.api';
 import { updateOwnerCenter } from '../../api/owner.api';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import { DialogHeader, DialogFooter } from '../common/DialogHeader';
 import { BRAND } from '../../theme';
 
 interface Props {
@@ -47,7 +48,6 @@ export default function EditCenterDialog({ open, onClose, center }: Props) {
   const [socialLink, setSocialLink]      = useState('');
   const [gstin, setGstin]                = useState('');
 
-  // Reset form whenever the dialog opens with a (possibly new) center
   useEffect(() => {
     if (!open || !center) return;
     setName(center.name ?? '');
@@ -81,7 +81,6 @@ export default function EditCenterDialog({ open, onClose, center }: Props) {
 
   const submit = () => {
     if (!center) return;
-    // Only send fields that actually changed
     const diff: CenterUpdatePayload = {};
     if (name !== center.name)                       diff.name = name.trim();
     if (ownerName !== (center.owner_name ?? ''))    diff.owner_name = ownerName.trim();
@@ -101,7 +100,6 @@ export default function EditCenterDialog({ open, onClose, center }: Props) {
     if (gstin.trim().toUpperCase() !== (center.gstin ?? '')) {
       diff.gstin = gstin.trim() ? gstin.trim().toUpperCase() : null;
     }
-
     if (Object.keys(diff).length === 0) {
       showSnack('No changes to save', 'info');
       return;
@@ -112,30 +110,31 @@ export default function EditCenterDialog({ open, onClose, center }: Props) {
   return (
     <Dialog
       open={open}
-      onClose={() => {
-        if (!saveMut.isPending) onClose();
-      }}
+      onClose={() => { if (!saveMut.isPending) onClose(); }}
       maxWidth="md"
       fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
     >
-      <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
-        Edit center details
-        <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary, fontWeight: 500, mt: 0.25 }}>
-          Category, registration status, and admin notes can only be changed by an Admin.
-        </Typography>
-      </DialogTitle>
-      <DialogContent>
-        <Stack gap={2} mt={0.5}>
+      <DialogHeader
+        icon={<EditRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Edit Center Details"
+        subtitle="Category, registration status, and admin notes can only be changed by an Admin."
+        onClose={onClose}
+        disabled={saveMut.isPending}
+      />
+
+      <DialogContent sx={{ py: 2.5 }}>
+        <Stack gap={3}>
           <Section title="Basics">
             <Grid container spacing={2}>
               <Grid item xs={12} sm={8}>
-                <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth />
+                <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField label="Mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} fullWidth />
+                <TextField label="Mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={12}>
-                <TextField label="Owner name" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} fullWidth />
+                <TextField label="Owner name" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} fullWidth size="small" />
               </Grid>
             </Grid>
           </Section>
@@ -143,16 +142,16 @@ export default function EditCenterDialog({ open, onClose, center }: Props) {
           <Section title="Location">
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <TextField label="Address" value={address} onChange={(e) => setAddress(e.target.value)} fullWidth multiline minRows={2} />
+                <TextField label="Address" value={address} onChange={(e) => setAddress(e.target.value)} fullWidth size="small" multiline minRows={2} />
               </Grid>
               <Grid item xs={12} sm={5}>
-                <TextField label="City" value={city} onChange={(e) => setCity(e.target.value)} fullWidth />
+                <TextField label="City" value={city} onChange={(e) => setCity(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={8} sm={4}>
-                <TextField label="State" value={state} onChange={(e) => setState(e.target.value)} fullWidth />
+                <TextField label="State" value={state} onChange={(e) => setState(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={4} sm={3}>
-                <TextField label="Pincode" value={pincode} onChange={(e) => setPincode(e.target.value)} fullWidth />
+                <TextField label="Pincode" value={pincode} onChange={(e) => setPincode(e.target.value)} fullWidth size="small" />
               </Grid>
             </Grid>
           </Section>
@@ -160,22 +159,22 @@ export default function EditCenterDialog({ open, onClose, center }: Props) {
           <Section title="Operations">
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <TextField label="Operating days" value={operatingDays} onChange={(e) => setOperatingDays(e.target.value)} fullWidth />
+                <TextField label="Operating days" value={operatingDays} onChange={(e) => setOperatingDays(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField label="Operating timings" value={operatingTimings} onChange={(e) => setOperatingTimings(e.target.value)} fullWidth />
+                <TextField label="Operating timings" value={operatingTimings} onChange={(e) => setOperatingTimings(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField label="Age group" value={ageGroup} onChange={(e) => setAgeGroup(e.target.value)} fullWidth />
+                <TextField label="Age group" value={ageGroup} onChange={(e) => setAgeGroup(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField label="Fee range" value={feeRange} onChange={(e) => setFeeRange(e.target.value)} fullWidth />
+                <TextField label="Fee range" value={feeRange} onChange={(e) => setFeeRange(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={12}>
-                <TextField label="Facilities" value={facilities} onChange={(e) => setFacilities(e.target.value)} fullWidth multiline minRows={2} />
+                <TextField label="Facilities" value={facilities} onChange={(e) => setFacilities(e.target.value)} fullWidth size="small" multiline minRows={2} />
               </Grid>
               <Grid item xs={12}>
-                <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} fullWidth multiline minRows={3} />
+                <TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} fullWidth size="small" multiline minRows={3} />
               </Grid>
             </Grid>
           </Section>
@@ -191,6 +190,7 @@ export default function EditCenterDialog({ open, onClose, center }: Props) {
                   placeholder="22AAAAA0000A1Z5"
                   helperText="Optional. When set, fee invoices show CGST/SGST split."
                   fullWidth
+                  size="small"
                 />
               </Grid>
             </Grid>
@@ -199,21 +199,35 @@ export default function EditCenterDialog({ open, onClose, center }: Props) {
           <Section title="Links">
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <TextField label="Website" value={websiteLink} onChange={(e) => setWebsiteLink(e.target.value)} fullWidth />
+                <TextField label="Website" value={websiteLink} onChange={(e) => setWebsiteLink(e.target.value)} fullWidth size="small" />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField label="Social link" value={socialLink} onChange={(e) => setSocialLink(e.target.value)} fullWidth />
+                <TextField label="Social link" value={socialLink} onChange={(e) => setSocialLink(e.target.value)} fullWidth size="small" />
               </Grid>
             </Grid>
           </Section>
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={saveMut.isPending}>Cancel</Button>
-        <Button variant="contained" onClick={submit} disabled={saveMut.isPending}>
+
+      <DialogFooter>
+        <Button onClick={onClose} disabled={saveMut.isPending}
+          sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={submit}
+          disabled={saveMut.isPending}
+          startIcon={saveMut.isPending ? <CircularProgress size={13} color="inherit" /> : <EditRoundedIcon />}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}
+        >
           {saveMut.isPending ? 'Saving…' : 'Save changes'}
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </Dialog>
   );
 }

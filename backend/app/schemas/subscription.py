@@ -24,9 +24,19 @@ class StorageAddOn(BaseModel):
     sort_order: int
 
 
-class CenterSubscriptionSummary(BaseModel):
+class OwnerCenterRef(BaseModel):
+    """Light reference to one of the owner's centers — included so the admin UI
+    can show the breakdown of where students sit across centers."""
     center_id: uuid.UUID
     center_name: str
+    student_count: int
+
+
+class OwnerSubscriptionSummary(BaseModel):
+    owner_id: uuid.UUID
+    owner_name: str
+    owner_email: Optional[str] = None
+    owner_mobile: Optional[str] = None
     plan_id: uuid.UUID
     plan_name: str
     plan_price: float
@@ -36,7 +46,8 @@ class CenterSubscriptionSummary(BaseModel):
     start_date: date
     end_date: Optional[date] = None
     status: str
-    # usage
+    # usage (aggregated across all centers owned)
+    center_count: int
     current_student_count: int
     storage_used_mb: float
     # purchased add-on storage (sum)
@@ -49,7 +60,8 @@ class CenterSubscriptionSummary(BaseModel):
     estimated_total: float
 
 
-class CenterSubscriptionDetail(CenterSubscriptionSummary):
+class OwnerSubscriptionDetail(OwnerSubscriptionSummary):
+    centers: list[OwnerCenterRef]
     storage_purchases: list[dict]
     billing_history: list[dict]
 
@@ -104,8 +116,8 @@ class PurchaseStorageRequest(BaseModel):
 
 class BillingHistoryEntry(BaseModel):
     id: uuid.UUID
-    center_id: uuid.UUID
-    center_name: str
+    owner_id: uuid.UUID
+    owner_name: str
     billing_month: date
     plan_name: str
     plan_amount: float
@@ -125,6 +137,7 @@ class UpdateBillingStatusRequest(BaseModel):
 
 
 class SubscriptionDashboard(BaseModel):
+    total_owners: int
     total_centers: int
     active_subscriptions: int
     free_plan_count: int

@@ -18,6 +18,11 @@ export interface OwnerStudent {
   parent_mobile: string | null;
   medical_notes: string | null;
   profile_image_url: string | null;
+  blood_group: string | null;
+  current_class: string | null;
+  school_name: string | null;
+  address: string | null;
+  emergency_contact: string | null;
   invite_status: string;
   status: string;
   added_at: string;
@@ -27,8 +32,13 @@ export interface OwnerStudentCreatePayload {
   name: string;
   date_of_birth: string;
   gender: string;
-  parent_mobile?: string | null;
+  parent_id: string;
   medical_notes?: string | null;
+  blood_group?: string | null;
+  current_class?: string | null;
+  school_name?: string | null;
+  profile_image_base64?: string | null;
+  date_of_join?: string | null;
 }
 
 export interface OwnerStudentUpdatePayload {
@@ -36,6 +46,11 @@ export interface OwnerStudentUpdatePayload {
   date_of_birth?: string;
   gender?: string;
   medical_notes?: string | null;
+  blood_group?: string | null;
+  current_class?: string | null;
+  school_name?: string | null;
+  profile_image_base64?: string | null;
+  date_of_join?: string | null;
 }
 
 export const listOwnerStudents = (centerId: string) =>
@@ -69,18 +84,34 @@ export interface OwnerTeacher {
   email: string | null;
   mobile_number: string;
   specialisation: string | null;
+  qualification: string | null;
+  experience_years: number | null;
+  id_proof_url: string | null;
+  qualification_cert_url: string | null;
   joined_at: string;
   is_active: boolean;
 }
 
 export interface OwnerTeacherCreatePayload {
+  name: string;
   mobile_number: string;
+  email?: string | null;
   specialisation?: string | null;
+  qualification?: string | null;
+  experience_years?: number | null;
+  date_of_join?: string | null;
+  id_proof_base64?: string | null;
+  qualification_cert_base64?: string | null;
 }
 
 export interface OwnerTeacherUpdatePayload {
   specialisation?: string | null;
+  qualification?: string | null;
+  experience_years?: number | null;
   is_active?: boolean;
+  date_of_join?: string | null;
+  id_proof_base64?: string | null;
+  qualification_cert_base64?: string | null;
 }
 
 export const listOwnerTeachers = (centerId: string) =>
@@ -105,6 +136,7 @@ export const removeOwnerTeacher = (centerId: string, teacherId: string) =>
     .delete<{ message: string }>(`/owner/centers/${centerId}/teachers/${teacherId}`)
     .then((r) => r.data);
 
+
 // ── Batches (owner-scoped) ───────────────────────────────────────────────────
 
 export interface OwnerBatch {
@@ -121,6 +153,7 @@ export interface OwnerBatch {
   teacher_name: string | null;
   teacher_id: string | null;
   created_date: string;
+  student_count: number;
 }
 
 export interface OwnerBatchCreatePayload {
@@ -183,6 +216,50 @@ export interface OwnerParent {
 
 export const listOwnerParents = (centerId: string) =>
   apiClient.get<OwnerParent[]>(`/owner/centers/${centerId}/parents`).then((r) => r.data);
+
+// ── Parent search / mapping / creation ───────────────────────────────────────
+
+export interface OwnerParentChild {
+  id: string;
+  name: string;
+  center_id: string | null;
+  center_name: string | null;
+}
+
+export interface OwnerParentSearchResult {
+  id: string;
+  name: string;
+  mobile_number: string;
+  email: string | null;
+  status: string;
+  is_mapped_to_center: boolean;
+  children: OwnerParentChild[];
+}
+
+export interface OwnerParentCreatePayload {
+  name: string;
+  mobile_number: string;
+  email?: string;
+  address?: string | null;
+  emergency_contact?: string | null;
+}
+
+export const searchOwnerParents = (q: string, forCenterId: string) =>
+  apiClient
+    .get<OwnerParentSearchResult[]>('/owner/parents/search', {
+      params: { q, for_center_id: forCenterId },
+    })
+    .then((r) => r.data);
+
+export const linkOwnerParentToCenter = (centerId: string, parentId: string) =>
+  apiClient
+    .post<OwnerParent>(`/owner/centers/${centerId}/parents/${parentId}/link`)
+    .then((r) => r.data);
+
+export const createOwnerParent = (centerId: string, payload: OwnerParentCreatePayload) =>
+  apiClient
+    .post<OwnerParent>(`/owner/centers/${centerId}/parents`, payload)
+    .then((r) => r.data);
 
 // ── Batch students (owner-scoped) ────────────────────────────────────────────
 
@@ -430,6 +507,23 @@ export const createOwnerFee = (centerId: string, payload: OwnerFeeCreatePayload)
 export const createOwnerFeesBulk = (centerId: string, payload: OwnerFeeBulkPayload) =>
   apiClient
     .post<{ created: number }>(`/owner/centers/${centerId}/fees/bulk-by-batch`, payload)
+    .then((r) => r.data);
+
+export interface GenerateFromBatchesPayload {
+  batch_ids: string[];
+  due_date: string;
+  notes?: string | null;
+}
+
+export interface GenerateFromBatchesResult {
+  created: number;
+  skipped: number;
+  batches: { batch_id: string; batch_name: string; created: number; skipped: number }[];
+}
+
+export const generateOwnerFeesFromBatches = (centerId: string, payload: GenerateFromBatchesPayload) =>
+  apiClient
+    .post<GenerateFromBatchesResult>(`/owner/centers/${centerId}/fees/generate-from-batches`, payload)
     .then((r) => r.data);
 
 export const updateOwnerFee = (

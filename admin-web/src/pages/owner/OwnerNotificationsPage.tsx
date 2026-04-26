@@ -9,9 +9,7 @@ import {
   Chip,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogTitle,
   FormControlLabel,
   Grid,
   MenuItem,
@@ -34,6 +32,7 @@ import {
   broadcastOwnerNotification,
   type OwnerBroadcastAudience,
 } from '../../api/owner.api';
+import { DialogHeader, DialogFooter } from '../../components/common/DialogHeader';
 import { BRAND, STATUS_COLORS } from '../../theme';
 
 function formatRelative(iso: string | null) {
@@ -96,20 +95,23 @@ function ComposeDialog({
   });
 
   return (
-    <Dialog open={open} onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
-        Send announcement
-        <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary, fontWeight: 500, mt: 0.25 }}>
-          Reaches every recipient in the chosen audience as an in-app notification.
-        </Typography>
-      </DialogTitle>
-      <DialogContent>
-        <Stack gap={2} mt={0.5}>
+    <Dialog open={open} onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <DialogHeader
+        icon={<CampaignRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Send Announcement"
+        subtitle="Reaches every recipient as an in-app notification"
+        onClose={() => !mut.isPending && onClose()}
+        disabled={mut.isPending}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
+        <Stack gap={2}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={7}>
               <TextField
                 select
                 fullWidth
+                size="small"
                 label="Center"
                 value={pickedCenter}
                 onChange={(e) => setPickedCenter(e.target.value)}
@@ -123,6 +125,7 @@ function ComposeDialog({
               <TextField
                 select
                 fullWidth
+                size="small"
                 label="Audience"
                 value={audience}
                 onChange={(e) => setAudience(e.target.value as OwnerBroadcastAudience)}
@@ -137,6 +140,7 @@ function ComposeDialog({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             inputProps={{ maxLength: 200 }}
+            size="small"
             fullWidth
             autoFocus
           />
@@ -147,12 +151,14 @@ function ComposeDialog({
             inputProps={{ maxLength: 1000 }}
             multiline
             minRows={4}
+            size="small"
             fullWidth
             helperText={`${body.length} / 1000`}
           />
           <TextField
             select
             fullWidth
+            size="small"
             label="Category"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -163,17 +169,24 @@ function ComposeDialog({
           </TextField>
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={mut.isPending}>Cancel</Button>
+      <DialogFooter>
+        <Button onClick={onClose} disabled={mut.isPending} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          Cancel
+        </Button>
         <Button
           variant="contained"
-          startIcon={<CampaignRoundedIcon />}
+          startIcon={mut.isPending ? <CircularProgress size={13} color="inherit" /> : <CampaignRoundedIcon />}
           onClick={() => mut.mutate()}
           disabled={!valid || mut.isPending}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}
         >
           {mut.isPending ? 'Sending…' : `Send to ${audience.toLowerCase()}`}
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </Dialog>
   );
 }

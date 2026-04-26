@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -7,10 +7,8 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  Divider,
+  Drawer,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -24,13 +22,18 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import AddRoundedIcon       from '@mui/icons-material/AddRounded';
-import SearchRoundedIcon    from '@mui/icons-material/SearchRounded';
-import DeleteRoundedIcon    from '@mui/icons-material/DeleteRounded';
-import EditRoundedIcon      from '@mui/icons-material/EditRounded';
-import SchoolRoundedIcon    from '@mui/icons-material/SchoolRounded';
+import AddRoundedIcon        from '@mui/icons-material/AddRounded';
+import SearchRoundedIcon     from '@mui/icons-material/SearchRounded';
+import DeleteRoundedIcon     from '@mui/icons-material/DeleteRounded';
+import EditRoundedIcon       from '@mui/icons-material/EditRounded';
+import SchoolRoundedIcon     from '@mui/icons-material/SchoolRounded';
+import PersonRoundedIcon     from '@mui/icons-material/PersonRounded';
+import SwapHorizRoundedIcon  from '@mui/icons-material/SwapHorizRounded';
+import CameraAltRoundedIcon  from '@mui/icons-material/CameraAltRounded';
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOwnerCenter } from '../../contexts/OwnerCenterContext';
+import { useSearchParams } from 'react-router-dom';
 import {
   listOwnerStudents,
   createOwnerStudent,
@@ -42,114 +45,484 @@ import {
 } from '../../api/owner.api';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import ParentPickerDialog from '../../components/students/ParentPickerDialog';
+import { DialogHeader } from '../../components/common/DialogHeader';
 import { BRAND, STATUS_COLORS } from '../../theme';
 
 const GENDERS = ['Male', 'Female', 'Other'];
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-function StudentForm({
-  initial,
-  onSubmit,
-  onClose,
-  saving,
-  isEdit,
+/* Resize a File to max 400×400, return base64 data URI */
+function resizeImage(file: File, maxPx = 400): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography sx={{
+      fontSize: 11, fontWeight: 700, color: BRAND.textSecondary,
+      textTransform: 'uppercase', letterSpacing: 0.8, mb: 1.25, mt: 0.5,
+    }}>
+      {children}
+    </Typography>
+  );
+}
+
+/* ── Add Student — right-side drawer ── */
+function AddStudentDrawer({
+  open, onClose, centerId, onSubmit, saving,
 }: {
-  initial?: Partial<OwnerStudent>;
-  onSubmit: (data: OwnerStudentCreatePayload | OwnerStudentUpdatePayload) => void;
+  open: boolean;
   onClose: () => void;
+  centerId: string;
+  onSubmit: (data: OwnerStudentCreatePayload) => void;
   saving: boolean;
-  isEdit: boolean;
 }) {
-  const [name, setName] = useState(initial?.name ?? '');
-  const [dob, setDob] = useState(initial?.date_of_birth ?? '');
-  const [gender, setGender] = useState(initial?.gender ?? 'Male');
-  const [parentMobile, setParentMobile] = useState(initial?.parent_mobile ?? '');
-  const [medical, setMedical] = useState(initial?.medical_notes ?? '');
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+  const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('Male');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [currentClass, setCurrentClass] = useState('');
+  const [schoolName, setSchoolName] = useState('');
+  const [medical, setMedical] = useState('');
+  const [dateOfJoin, setDateOfJoin] = useState(todayStr());
+  const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
+  const [parent, setParent] = useState<{ parent_id: string; parent_name: string; parent_mobile: string } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const valid = name.trim() && dob && gender;
+  useEffect(() => {
+    if (open) {
+      setName(''); setDob(''); setGender('Male'); setBloodGroup('');
+      setCurrentClass(''); setSchoolName(''); setMedical('');
+      setDateOfJoin(todayStr()); setPhotoDataUri(null); setParent(null);
+    }
+  }, [open]);
+
+  const handlePhotoFile = async (file: File | undefined) => {
+    if (!file) return;
+    const uri = await resizeImage(file);
+    setPhotoDataUri(uri);
+  };
+
+  const valid = !!(name.trim() && dob && gender && parent);
 
   const submit = () => {
-    if (!valid) return;
-    if (isEdit) {
-      const update: OwnerStudentUpdatePayload = {};
-      if (name !== initial?.name) update.name = name.trim();
-      if (dob !== initial?.date_of_birth) update.date_of_birth = dob;
-      if (gender !== initial?.gender) update.gender = gender;
-      if ((medical || '') !== (initial?.medical_notes || '')) {
-        update.medical_notes = medical || null;
-      }
-      onSubmit(update);
-    } else {
-      onSubmit({
-        name: name.trim(),
-        date_of_birth: dob,
-        gender,
-        parent_mobile: parentMobile.trim() || null,
-        medical_notes: medical.trim() || null,
-      });
-    }
+    if (!valid || !parent) return;
+    onSubmit({
+      name: name.trim(),
+      date_of_birth: dob,
+      gender,
+      parent_id: parent.parent_id,
+      blood_group: bloodGroup || null,
+      current_class: currentClass.trim() || null,
+      school_name: schoolName.trim() || null,
+      medical_notes: medical.trim() || null,
+      date_of_join: dateOfJoin || null,
+      profile_image_base64: photoDataUri || null,
+    });
   };
 
   return (
     <>
-      <DialogTitle sx={{ fontWeight: 700 }}>
-        {isEdit ? 'Edit Student' : 'Add Student'}
-      </DialogTitle>
-      <DialogContent>
-        <Stack gap={2} mt={0.5}>
-          <TextField
-            label="Full name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            fullWidth
-            autoFocus
-          />
-          <Stack direction="row" gap={2}>
-            <TextField
-              label="Date of birth"
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-            <TextField
-              label="Gender"
-              select
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              fullWidth
-            >
-              {GENDERS.map((g) => (
-                <MenuItem key={g} value={g}>{g}</MenuItem>
-              ))}
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={() => !saving && onClose()}
+        PaperProps={{
+          sx: {
+            width: { xs: '100vw', sm: 460 },
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '-4px 0 32px rgba(15,30,53,0.18)',
+          },
+        }}
+      >
+        <DialogHeader
+          icon={<SchoolRoundedIcon sx={{ fontSize: 20 }} />}
+          title="Add Student"
+          subtitle="Fill in the details below to enroll a new student"
+          onClose={onClose}
+          disabled={saving}
+        />
+
+        <Box sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
+          <Stack gap={0}>
+
+            {/* ── Profile photo ── */}
+            <SectionLabel>Profile Photo</SectionLabel>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+              <Box sx={{ position: 'relative', width: 88, height: 88 }}>
+                <Avatar
+                  src={photoDataUri ?? undefined}
+                  sx={{
+                    width: 88, height: 88,
+                    bgcolor: BRAND.primaryBg, color: BRAND.primary,
+                    fontSize: 28, fontWeight: 700,
+                    border: `2px solid ${BRAND.divider}`,
+                  }}
+                >
+                  {name ? name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) : <SchoolRoundedIcon sx={{ fontSize: 32 }} />}
+                </Avatar>
+                <IconButton
+                  size="small"
+                  onClick={() => fileRef.current?.click()}
+                  sx={{
+                    position: 'absolute', bottom: 0, right: 0,
+                    width: 28, height: 28,
+                    background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+                    color: '#fff', border: '2px solid #fff',
+                    '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+                  }}
+                >
+                  <CameraAltRoundedIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={(e) => handlePhotoFile(e.target.files?.[0])}
+                />
+              </Box>
+            </Box>
+
+            {/* ── Basic Info ── */}
+            <SectionLabel>Basic Info</SectionLabel>
+            <Stack gap={2} mb={3}>
+              <TextField label="Full name *" value={name} onChange={(e) => setName(e.target.value)}
+                fullWidth size="small" autoFocus />
+
+              <Stack direction="row" gap={2}>
+                <TextField label="Date of birth *" type="date" value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                  InputLabelProps={{ shrink: true }} size="small" fullWidth />
+                <TextField label="Gender *" select value={gender}
+                  onChange={(e) => setGender(e.target.value)} size="small" fullWidth>
+                  {GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+                </TextField>
+              </Stack>
+
+              <TextField label="Blood group" select value={bloodGroup}
+                onChange={(e) => setBloodGroup(e.target.value)} size="small" fullWidth>
+                <MenuItem value="">— Not specified —</MenuItem>
+                {BLOOD_GROUPS.map((b) => <MenuItem key={b} value={b}>{b}</MenuItem>)}
+              </TextField>
+            </Stack>
+
+            {/* ── Academic ── */}
+            <SectionLabel>Academic</SectionLabel>
+            <Stack gap={2} mb={3}>
+              <TextField label="Current class / grade" value={currentClass}
+                onChange={(e) => setCurrentClass(e.target.value)}
+                placeholder="e.g. Class 5-A, LKG, Grade 10"
+                size="small" fullWidth />
+              <TextField label="School name" value={schoolName}
+                onChange={(e) => setSchoolName(e.target.value)}
+                size="small" fullWidth />
+            </Stack>
+
+            {/* ── Parent ── */}
+            <SectionLabel>Parent *</SectionLabel>
+            <Box mb={3}>
+              {parent ? (
+                <Box sx={{
+                  border: `1px solid ${BRAND.divider}`, borderRadius: 2,
+                  p: 1.25, display: 'flex', alignItems: 'center', gap: 1.25,
+                  bgcolor: BRAND.primaryBg,
+                }}>
+                  <Box sx={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <PersonRoundedIcon sx={{ fontSize: 18, color: '#fff' }} />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography noWrap sx={{ fontSize: 14, fontWeight: 600 }}>{parent.parent_name}</Typography>
+                    <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>{parent.parent_mobile}</Typography>
+                  </Box>
+                  <Button size="small" startIcon={<SwapHorizRoundedIcon sx={{ fontSize: 15 }} />}
+                    onClick={() => setPickerOpen(true)} sx={{ fontSize: 12 }}>
+                    Change
+                  </Button>
+                </Box>
+              ) : (
+                <Button variant="outlined" fullWidth startIcon={<PersonRoundedIcon />}
+                  onClick={() => setPickerOpen(true)}
+                  sx={{ justifyContent: 'flex-start', textTransform: 'none', py: 1.5, borderStyle: 'dashed' }}>
+                  Choose parent
+                </Button>
+              )}
+              <Typography sx={{ fontSize: 11.5, color: BRAND.textSecondary, mt: 0.75 }}>
+                Every student must be linked to a parent. Search globally or add a new parent.
+              </Typography>
+            </Box>
+
+            {/* ── Health ── */}
+            <SectionLabel>Health</SectionLabel>
+            <Stack gap={2} mb={3}>
+              <TextField label="Medical notes" value={medical}
+                onChange={(e) => setMedical(e.target.value)}
+                placeholder="Allergies, conditions, special needs…"
+                multiline minRows={2} size="small" fullWidth />
+            </Stack>
+
+            {/* ── Enrollment ── */}
+            <SectionLabel>Enrollment</SectionLabel>
+            <TextField label="Date of joining" type="date" value={dateOfJoin}
+              onChange={(e) => setDateOfJoin(e.target.value)}
+              InputLabelProps={{ shrink: true }} size="small" fullWidth
+              helperText="Date this student joined this center" />
+
+          </Stack>
+        </Box>
+
+        <Divider />
+        <Box sx={{
+          px: 3, py: 2, display: 'flex', justifyContent: 'flex-end', gap: 1.25,
+          bgcolor: BRAND.surface ?? '#fafafa', flexShrink: 0,
+        }}>
+          <Button onClick={onClose} disabled={saving} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={saving ? <CircularProgress size={13} color="inherit" /> : <AddRoundedIcon />}
+            onClick={submit}
+            disabled={!valid || saving}
+            sx={{
+              fontSize: 13, fontWeight: 600, px: 2.5,
+              background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+              '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+            }}
+          >
+            {saving ? 'Adding…' : 'Add student'}
+          </Button>
+        </Box>
+      </Drawer>
+
+      <ParentPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        centerId={centerId}
+        onPick={(p) => { setParent(p); setPickerOpen(false); }}
+      />
+    </>
+  );
+}
+
+/* ── Edit Student — right-side drawer ── */
+function EditStudentDialog({
+  student, onSubmit, onClose, saving,
+}: {
+  student: OwnerStudent | null;
+  onSubmit: (data: OwnerStudentUpdatePayload) => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('Male');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [currentClass, setCurrentClass] = useState('');
+  const [schoolName, setSchoolName] = useState('');
+  const [medical, setMedical] = useState('');
+  const [dateOfJoin, setDateOfJoin] = useState('');
+  const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (student) {
+      setName(student.name ?? '');
+      setDob(student.date_of_birth ?? '');
+      setGender(student.gender ?? 'Male');
+      setBloodGroup(student.blood_group ?? '');
+      setCurrentClass(student.current_class ?? '');
+      setSchoolName(student.school_name ?? '');
+      setMedical(student.medical_notes ?? '');
+      setDateOfJoin(student.added_at ? student.added_at.slice(0, 10) : '');
+      setPhotoDataUri(student.profile_image_url ?? null);
+    }
+  }, [student?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePhotoFile = async (file: File | undefined) => {
+    if (!file) return;
+    const uri = await resizeImage(file);
+    setPhotoDataUri(uri);
+  };
+
+  const valid = !!(name.trim() && dob && gender);
+  const submit = () => {
+    if (!valid || !student) return;
+    const update: OwnerStudentUpdatePayload = {};
+    if (name !== student.name) update.name = name.trim();
+    if (dob !== (student.date_of_birth ?? '')) update.date_of_birth = dob;
+    if (gender !== (student.gender ?? '')) update.gender = gender;
+    if (bloodGroup !== (student.blood_group ?? '')) update.blood_group = bloodGroup || null;
+    if (currentClass !== (student.current_class ?? '')) update.current_class = currentClass.trim() || null;
+    if (schoolName !== (student.school_name ?? '')) update.school_name = schoolName.trim() || null;
+    if (medical !== (student.medical_notes ?? '')) update.medical_notes = medical.trim() || null;
+    const origJoin = student.added_at ? student.added_at.slice(0, 10) : '';
+    if (dateOfJoin !== origJoin) update.date_of_join = dateOfJoin || null;
+    if (photoDataUri !== (student.profile_image_url ?? null)) update.profile_image_base64 = photoDataUri;
+    onSubmit(update);
+  };
+
+  if (!student) return null;
+  return (
+    <Drawer
+      anchor="right"
+      open
+      onClose={() => !saving && onClose()}
+      PaperProps={{
+        sx: {
+          width: { xs: '100vw', sm: 460 },
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '-4px 0 32px rgba(15,30,53,0.18)',
+        },
+      }}
+    >
+      <DialogHeader
+        icon={<EditRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Edit Student"
+        subtitle={student.name}
+        onClose={onClose}
+        disabled={saving}
+      />
+
+      <Box sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
+        <Stack gap={0}>
+
+          {/* ── Profile photo ── */}
+          <SectionLabel>Profile Photo</SectionLabel>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Box sx={{ position: 'relative', width: 88, height: 88 }}>
+              <Avatar
+                src={photoDataUri ?? undefined}
+                sx={{
+                  width: 88, height: 88,
+                  bgcolor: BRAND.primaryBg, color: BRAND.primary,
+                  fontSize: 28, fontWeight: 700,
+                  border: `2px solid ${BRAND.divider}`,
+                }}
+              >
+                {name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}
+              </Avatar>
+              <IconButton
+                size="small"
+                onClick={() => fileRef.current?.click()}
+                sx={{
+                  position: 'absolute', bottom: 0, right: 0,
+                  width: 28, height: 28,
+                  background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+                  color: '#fff', border: '2px solid #fff',
+                  '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+                }}
+              >
+                <CameraAltRoundedIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: 'none' }}
+                onChange={(e) => handlePhotoFile(e.target.files?.[0])}
+              />
+            </Box>
+          </Box>
+
+          {/* ── Basic Info ── */}
+          <SectionLabel>Basic Info</SectionLabel>
+          <Stack gap={2} mb={3}>
+            <TextField label="Full name *" value={name} onChange={(e) => setName(e.target.value)}
+              fullWidth size="small" autoFocus />
+            <Stack direction="row" gap={2}>
+              <TextField label="Date of birth *" type="date" value={dob}
+                onChange={(e) => setDob(e.target.value)}
+                InputLabelProps={{ shrink: true }} size="small" fullWidth />
+              <TextField label="Gender *" select value={gender}
+                onChange={(e) => setGender(e.target.value)} size="small" fullWidth>
+                {GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+              </TextField>
+            </Stack>
+            <TextField label="Blood group" select value={bloodGroup}
+              onChange={(e) => setBloodGroup(e.target.value)} size="small" fullWidth>
+              <MenuItem value="">— Not specified —</MenuItem>
+              {BLOOD_GROUPS.map((b) => <MenuItem key={b} value={b}>{b}</MenuItem>)}
             </TextField>
           </Stack>
-          {!isEdit && (
-            <TextField
-              label="Parent mobile (optional)"
-              value={parentMobile}
-              onChange={(e) => setParentMobile(e.target.value)}
-              helperText="If a parent with this mobile is registered, the student is auto-linked."
-              fullWidth
-            />
-          )}
-          <TextField
-            label="Medical notes (optional)"
-            value={medical}
-            onChange={(e) => setMedical(e.target.value)}
-            multiline
-            minRows={2}
-            fullWidth
-          />
+
+          {/* ── Academic ── */}
+          <SectionLabel>Academic</SectionLabel>
+          <Stack gap={2} mb={3}>
+            <TextField label="Current class / grade" value={currentClass}
+              onChange={(e) => setCurrentClass(e.target.value)}
+              placeholder="e.g. Class 5-A, LKG, Grade 10"
+              size="small" fullWidth />
+            <TextField label="School name" value={schoolName}
+              onChange={(e) => setSchoolName(e.target.value)}
+              size="small" fullWidth />
+          </Stack>
+
+          {/* ── Health ── */}
+          <SectionLabel>Health</SectionLabel>
+          <Stack gap={2} mb={3}>
+            <TextField label="Medical notes" value={medical}
+              onChange={(e) => setMedical(e.target.value)}
+              placeholder="Allergies, conditions, special needs…"
+              multiline minRows={2} size="small" fullWidth />
+          </Stack>
+
+          {/* ── Enrollment ── */}
+          <SectionLabel>Enrollment</SectionLabel>
+          <TextField label="Date of joining" type="date" value={dateOfJoin}
+            onChange={(e) => setDateOfJoin(e.target.value)}
+            InputLabelProps={{ shrink: true }} size="small" fullWidth
+            helperText="Date this student joined this center" />
+
         </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button variant="contained" onClick={submit} disabled={!valid || saving}>
-          {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add student'}
+      </Box>
+
+      <Divider />
+      <Box sx={{
+        px: 3, py: 2, display: 'flex', justifyContent: 'flex-end', gap: 1.25,
+        bgcolor: BRAND.surface ?? '#fafafa', flexShrink: 0,
+      }}>
+        <Button onClick={onClose} disabled={saving} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>Cancel</Button>
+        <Button variant="contained"
+          startIcon={saving ? <CircularProgress size={13} color="inherit" /> : <EditRoundedIcon />}
+          onClick={submit} disabled={!valid || saving}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}>
+          {saving ? 'Saving…' : 'Save changes'}
         </Button>
-      </DialogActions>
-    </>
+      </Box>
+    </Drawer>
   );
 }
 
@@ -157,12 +530,21 @@ export default function OwnerStudentsPage() {
   const { centerId, centers } = useOwnerCenter();
   const qc = useQueryClient();
   const { showSnack } = useSnackbar();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<string>('');
   const [editing, setEditing] = useState<OwnerStudent | null>(null);
   const [adding, setAdding] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<OwnerStudent | null>(null);
+
+  // Auto-open Add dialog when navigated with ?add=1 (e.g. from sidebar shortcut)
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      setAdding(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const centerName = centers.find((c) => c.id === centerId)?.name ?? '';
 
@@ -387,28 +769,22 @@ export default function OwnerStudentsPage() {
         </CardContent>
       </Card>
 
-      {/* Add dialog */}
-      <Dialog open={adding} onClose={() => setAdding(false)} maxWidth="sm" fullWidth>
-        <StudentForm
-          isEdit={false}
-          onSubmit={(data) => createMut.mutate(data as OwnerStudentCreatePayload)}
-          onClose={() => setAdding(false)}
-          saving={createMut.isPending}
-        />
-      </Dialog>
+      {/* Add — right-side drawer */}
+      <AddStudentDrawer
+        open={adding}
+        onClose={() => setAdding(false)}
+        centerId={centerId!}
+        onSubmit={(data) => createMut.mutate(data)}
+        saving={createMut.isPending}
+      />
 
-      {/* Edit dialog */}
-      <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="sm" fullWidth>
-        {editing && (
-          <StudentForm
-            isEdit
-            initial={editing}
-            onSubmit={(data) => updateMut.mutate({ id: editing.id, payload: data as OwnerStudentUpdatePayload })}
-            onClose={() => setEditing(null)}
-            saving={updateMut.isPending}
-          />
-        )}
-      </Dialog>
+      {/* Edit — centered dialog */}
+      <EditStudentDialog
+        student={editing}
+        onSubmit={(data) => editing && updateMut.mutate({ id: editing.id, payload: data })}
+        onClose={() => setEditing(null)}
+        saving={updateMut.isPending}
+      />
 
       {/* Delete confirm */}
       <ConfirmDialog

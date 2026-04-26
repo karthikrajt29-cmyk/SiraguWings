@@ -21,9 +21,17 @@ export interface StorageAddOn {
   sort_order: number;
 }
 
-export interface CenterSubscriptionSummary {
+export interface OwnerCenterRef {
   center_id: string;
   center_name: string;
+  student_count: number;
+}
+
+export interface OwnerSubscriptionSummary {
+  owner_id: string;
+  owner_name: string;
+  owner_email: string | null;
+  owner_mobile: string | null;
   plan_id: string;
   plan_name: string;
   plan_price: number;
@@ -33,6 +41,7 @@ export interface CenterSubscriptionSummary {
   start_date: string;
   end_date: string | null;
   status: string;
+  center_count: number;
   current_student_count: number;
   storage_used_mb: number;
   addon_storage_mb: number;
@@ -53,15 +62,16 @@ export interface StoragePurchase {
   status: string;
 }
 
-export interface CenterSubscriptionDetail extends CenterSubscriptionSummary {
+export interface OwnerSubscriptionDetail extends OwnerSubscriptionSummary {
+  centers: OwnerCenterRef[];
   storage_purchases: StoragePurchase[];
   billing_history: BillingHistoryEntry[];
 }
 
 export interface BillingHistoryEntry {
   id: string;
-  center_id: string;
-  center_name: string;
+  owner_id: string;
+  owner_name: string;
   billing_month: string;
   plan_name: string;
   plan_amount: number;
@@ -76,6 +86,7 @@ export interface BillingHistoryEntry {
 }
 
 export interface SubscriptionDashboard {
+  total_owners: number;
   total_centers: number;
   active_subscriptions: number;
   free_plan_count: number;
@@ -125,45 +136,38 @@ export const deleteStorageAddOn = (id: string) =>
 export const getSubscriptionDashboard = () =>
   apiClient.get<SubscriptionDashboard>('/admin/subscription/dashboard').then((r) => r.data);
 
-export const getCenterSubscriptions = (params: {
+export const getOwnerSubscriptions = (params: {
   search?: string;
   plan_name?: string;
   page?: number;
   size?: number;
 }) =>
   apiClient
-    .get<PagedResponse<CenterSubscriptionSummary>>('/admin/subscription/centers', { params })
+    .get<PagedResponse<OwnerSubscriptionSummary>>('/admin/subscription/owners', { params })
     .then((r) => r.data);
 
-export const getCenterSubscriptionDetail = (centerId: string) =>
+export const getOwnerSubscriptionDetail = (ownerId: string) =>
   apiClient
-    .get<CenterSubscriptionDetail>(`/admin/subscription/centers/${centerId}`)
+    .get<OwnerSubscriptionDetail>(`/admin/subscription/owners/${ownerId}`)
     .then((r) => r.data);
 
 export const assignPlan = (
-  centerId: string,
+  ownerId: string,
   body: { plan_id: string; effective_date?: string; end_date?: string; notes?: string },
 ) =>
   apiClient
-    .post<{ message: string }>(`/admin/subscription/centers/${centerId}/assign-plan`, body)
+    .post<{ message: string }>(`/admin/subscription/owners/${ownerId}/assign-plan`, body)
     .then((r) => r.data);
 
-export const purchaseStorage = (centerId: string, body: { add_on_id: string }) =>
+export const purchaseStorage = (ownerId: string, body: { add_on_id: string }) =>
   apiClient
-    .post<{ message: string }>(`/admin/subscription/centers/${centerId}/storage`, body)
+    .post<{ message: string }>(`/admin/subscription/owners/${ownerId}/storage`, body)
     .then((r) => r.data);
 
-export const refreshUsage = (centerId: string) =>
-  apiClient
-    .post<{ message: string; data: { student_count: number } }>(
-      `/admin/subscription/centers/${centerId}/refresh-usage`,
-    )
-    .then((r) => r.data);
-
-export const generateBill = (centerId: string) =>
+export const generateBill = (ownerId: string) =>
   apiClient
     .post<{ message: string; data: { billing_month: string; total_amount: number } }>(
-      `/admin/subscription/centers/${centerId}/generate-bill`,
+      `/admin/subscription/owners/${ownerId}/generate-bill`,
     )
     .then((r) => r.data);
 
@@ -201,7 +205,7 @@ export const sendInvoiceEmail = (billingId: string) =>
     .then((r) => r.data);
 
 export const getBillingHistory = (params: {
-  center_id?: string;
+  owner_id?: string;
   month?: string;
   payment_status?: string;
   page?: number;

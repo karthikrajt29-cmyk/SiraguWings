@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime, time
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, EmailStr, field_validator
 
 RegistrationStatus = Literal[
     "Draft", "Submitted", "UnderReview", "Approved", "Rejected", "Suspended",
@@ -192,6 +192,7 @@ class BatchSummary(BaseModel):
     teacher_name: Optional[str] = None
     teacher_id: Optional[uuid.UUID] = None
     created_date: datetime
+    student_count: int = 0
 
 
 class BatchStudentSummary(BaseModel):
@@ -242,18 +243,37 @@ class TeacherSummary(BaseModel):
     email: Optional[str] = None
     mobile_number: str
     specialisation: Optional[str] = None
+    qualification: Optional[str] = None
+    experience_years: Optional[int] = None
+    id_proof_url: Optional[str] = None
+    qualification_cert_url: Optional[str] = None
     joined_at: datetime
     is_active: bool
 
 
 class TeacherCreateRequest(BaseModel):
+    # Identity — creates or links a user account
+    name: str
     mobile_number: str
+    email: Optional[EmailStr] = None
+    # Professional
     specialisation: Optional[str] = None
+    qualification: Optional[str] = None
+    experience_years: Optional[int] = None
+    date_of_join: Optional[date] = None
+    # Proof documents (base64 data URIs or raw base64)
+    id_proof_base64: Optional[str] = None
+    qualification_cert_base64: Optional[str] = None
 
 
 class TeacherUpdateRequest(BaseModel):
     specialisation: Optional[str] = None
+    qualification: Optional[str] = None
+    experience_years: Optional[int] = None
     is_active: Optional[bool] = None
+    date_of_join: Optional[date] = None
+    id_proof_base64: Optional[str] = None
+    qualification_cert_base64: Optional[str] = None
 
 
 # ── Student CRUD (owner-scoped) ────────────────────────────────────────────
@@ -276,6 +296,11 @@ class StudentSummary(BaseModel):
     parent_mobile: Optional[str] = None
     medical_notes: Optional[str] = None
     profile_image_url: Optional[str] = None
+    blood_group: Optional[str] = None
+    current_class: Optional[str] = None
+    school_name: Optional[str] = None
+    address: Optional[str] = None
+    emergency_contact: Optional[str] = None
     invite_status: str
     status: str
     added_at: datetime
@@ -286,8 +311,18 @@ class StudentCreateRequest(BaseModel):
     name: str
     date_of_birth: date
     gender: str  # validated against master_data('gender') in endpoint
+    # Preferred: caller resolves parent via the picker and passes the id.
+    parent_id: Optional[uuid.UUID] = None
+    # Deprecated: legacy mobile-lookup path; admin endpoint still accepts it.
     parent_mobile: Optional[str] = None
     medical_notes: Optional[str] = None
+    blood_group: Optional[str] = None
+    current_class: Optional[str] = None
+    school_name: Optional[str] = None
+    # Base64-encoded image (data URI or raw base64). Stored as profile_image_url.
+    profile_image_base64: Optional[str] = None
+    # Override center_student.added_at; defaults to NOW() if omitted.
+    date_of_join: Optional[date] = None
 
 
 class StudentUpdateRequest(BaseModel):
@@ -295,6 +330,11 @@ class StudentUpdateRequest(BaseModel):
     date_of_birth: Optional[date] = None
     gender: Optional[str] = None
     medical_notes: Optional[str] = None
+    blood_group: Optional[str] = None
+    current_class: Optional[str] = None
+    school_name: Optional[str] = None
+    profile_image_base64: Optional[str] = None
+    date_of_join: Optional[date] = None
 
 
 class StudentBulkDeleteRequest(BaseModel):

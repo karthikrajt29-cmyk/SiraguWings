@@ -5,12 +5,11 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -31,11 +30,11 @@ import {
   Typography,
 } from '@mui/material';
 import AddRoundedIcon            from '@mui/icons-material/AddRounded';
+import AutoFixHighRoundedIcon   from '@mui/icons-material/AutoFixHighRounded';
 import GroupAddRoundedIcon       from '@mui/icons-material/GroupAddRounded';
 import PaidRoundedIcon           from '@mui/icons-material/PaidRounded';
 import DeleteRoundedIcon         from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon           from '@mui/icons-material/EditRounded';
-import VisibilityRoundedIcon     from '@mui/icons-material/VisibilityRounded';
 import SearchRoundedIcon         from '@mui/icons-material/SearchRounded';
 import CurrencyRupeeRoundedIcon  from '@mui/icons-material/CurrencyRupeeRounded';
 import DownloadRoundedIcon       from '@mui/icons-material/DownloadRounded';
@@ -50,6 +49,7 @@ import {
   getOwnerFeesSummary,
   createOwnerFee,
   createOwnerFeesBulk,
+  generateOwnerFeesFromBatches,
   updateOwnerFee,
   removeOwnerFee,
   recordOwnerPayment,
@@ -61,14 +61,17 @@ import {
   sendOwnerFeeReminder,
   getOwnerFeeInvoice,
   type OwnerFee,
+  type OwnerBatch,
   type FeeStatus,
   type OwnerFeeFilters,
   type PaymentMode,
   type OwnerFeeInvoice,
   type OwnerPayment,
+  type GenerateFromBatchesResult,
 } from '../../api/owner.api';
 import { downloadCsv } from '../../utils/csv';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { DialogHeader, DialogFooter } from '../../components/common/DialogHeader';
 import { BRAND, STATUS_COLORS } from '../../theme';
 
 const fmtINR = (n: number) =>
@@ -146,12 +149,18 @@ function CreateFeeDialog({
   });
 
   return (
-    <Dialog open={open} onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>Create fee</DialogTitle>
-      <DialogContent>
-        <Stack gap={2} mt={0.5}>
+    <Dialog open={open} onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <DialogHeader
+        icon={<AddRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Create Fee"
+        onClose={() => !mut.isPending && onClose()}
+        disabled={mut.isPending}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
+        <Stack gap={2}>
           <TextField
-            select fullWidth required label="Student"
+            select fullWidth required size="small" label="Student"
             value={studentId} onChange={(e) => setStudentId(e.target.value)}
             disabled={studentsQuery.isLoading}
           >
@@ -160,7 +169,7 @@ function CreateFeeDialog({
             ))}
           </TextField>
           <TextField
-            select fullWidth label="Batch (optional)"
+            select fullWidth size="small" label="Batch (optional)"
             value={batchId} onChange={(e) => setBatchId(e.target.value)}
           >
             <MenuItem value="">— none —</MenuItem>
@@ -170,31 +179,43 @@ function CreateFeeDialog({
           </TextField>
           <Stack direction="row" gap={2}>
             <TextField
-              fullWidth required label="Amount" type="number" value={amount}
+              fullWidth required size="small" label="Amount" type="number" value={amount}
               onChange={(e) => setAmount(e.target.value)}
               InputProps={{
                 startAdornment: <InputAdornment position="start">₹</InputAdornment>,
               }}
             />
             <TextField
-              fullWidth required label="Due date" type="date"
+              fullWidth required size="small" label="Due date" type="date"
               value={dueDate} onChange={(e) => setDueDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
           </Stack>
           <TextField
-            label="Notes (optional)" value={notes}
+            label="Notes (optional)" size="small" value={notes}
             onChange={(e) => setNotes(e.target.value)}
             multiline minRows={2} fullWidth
           />
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={mut.isPending}>Cancel</Button>
-        <Button variant="contained" onClick={() => mut.mutate()} disabled={!valid || mut.isPending}>
+      <DialogFooter>
+        <Button onClick={onClose} disabled={mut.isPending} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={mut.isPending ? <CircularProgress size={13} color="inherit" /> : <AddRoundedIcon />}
+          onClick={() => mut.mutate()}
+          disabled={!valid || mut.isPending}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}
+        >
           {mut.isPending ? 'Saving…' : 'Create fee'}
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -243,17 +264,19 @@ function BulkFeesDialog({
   });
 
   return (
-    <Dialog open={open} onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
-        Bill an entire batch
-        <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary, fontWeight: 500, mt: 0.25 }}>
-          Creates one fee row per active student in the batch.
-        </Typography>
-      </DialogTitle>
-      <DialogContent>
-        <Stack gap={2} mt={0.5}>
+    <Dialog open={open} onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <DialogHeader
+        icon={<GroupAddRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Bill Entire Batch"
+        subtitle="Creates one fee row per active student in the batch"
+        onClose={() => !mut.isPending && onClose()}
+        disabled={mut.isPending}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
+        <Stack gap={2}>
           <TextField
-            select fullWidth required label="Batch"
+            select fullWidth required size="small" label="Batch"
             value={batchId} onChange={(e) => setBatchId(e.target.value)}
             disabled={batchesQuery.isLoading}
           >
@@ -263,31 +286,43 @@ function BulkFeesDialog({
           </TextField>
           <Stack direction="row" gap={2}>
             <TextField
-              fullWidth required label="Amount per student" type="number"
+              fullWidth required size="small" label="Amount per student" type="number"
               value={amount} onChange={(e) => setAmount(e.target.value)}
               InputProps={{
                 startAdornment: <InputAdornment position="start">₹</InputAdornment>,
               }}
             />
             <TextField
-              fullWidth required label="Due date" type="date"
+              fullWidth required size="small" label="Due date" type="date"
               value={dueDate} onChange={(e) => setDueDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
           </Stack>
           <TextField
-            label="Notes (optional)" value={notes}
+            label="Notes (optional)" size="small" value={notes}
             onChange={(e) => setNotes(e.target.value)}
             multiline minRows={2} fullWidth
           />
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={mut.isPending}>Cancel</Button>
-        <Button variant="contained" onClick={() => mut.mutate()} disabled={!valid || mut.isPending}>
+      <DialogFooter>
+        <Button onClick={onClose} disabled={mut.isPending} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={mut.isPending ? <CircularProgress size={13} color="inherit" /> : <GroupAddRoundedIcon />}
+          onClick={() => mut.mutate()}
+          disabled={!valid || mut.isPending}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}
+        >
           {mut.isPending ? 'Creating…' : 'Generate fees'}
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -336,40 +371,54 @@ function EditFeeDialog({
   if (!fee) return null;
 
   return (
-    <Dialog open onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
-        Edit fee
-        <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary, fontWeight: 500, mt: 0.25 }}>
-          {fee.student_name}
-        </Typography>
-      </DialogTitle>
-      <DialogContent>
-        <Stack gap={2} mt={0.5}>
+    <Dialog open onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <DialogHeader
+        icon={<EditRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Edit Fee"
+        subtitle={fee.student_name}
+        onClose={() => !mut.isPending && onClose()}
+        disabled={mut.isPending}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
+        <Stack gap={2}>
           <Stack direction="row" gap={2}>
             <TextField
-              fullWidth label="Amount" type="number" value={amount}
+              fullWidth size="small" label="Amount" type="number" value={amount}
               onChange={(e) => setAmount(e.target.value)}
               InputProps={{ startAdornment: <InputAdornment position="start">₹</InputAdornment> }}
             />
             <TextField
-              fullWidth label="Due date" type="date" value={dueDate}
+              fullWidth size="small" label="Due date" type="date" value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
           </Stack>
           <TextField
-            label="Notes" value={notes}
+            label="Notes" size="small" value={notes}
             onChange={(e) => setNotes(e.target.value)}
             multiline minRows={2} fullWidth
           />
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={mut.isPending}>Cancel</Button>
-        <Button variant="contained" onClick={() => mut.mutate()} disabled={mut.isPending}>
+      <DialogFooter>
+        <Button onClick={onClose} disabled={mut.isPending} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={mut.isPending ? <CircularProgress size={13} color="inherit" /> : <EditRoundedIcon />}
+          onClick={() => mut.mutate()}
+          disabled={mut.isPending}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}
+        >
           {mut.isPending ? 'Saving…' : 'Save changes'}
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -379,10 +428,12 @@ function PaymentDialog({
   fee,
   centerId,
   onClose,
+  onInvoice,
 }: {
   fee: OwnerFee | null;
   centerId: string;
   onClose: () => void;
+  onInvoice: (fee: OwnerFee) => void;
 }) {
   const qc = useQueryClient();
   const { showSnack } = useSnackbar();
@@ -437,14 +488,16 @@ function PaymentDialog({
   if (!fee) return null;
 
   return (
-    <Dialog open onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
-        Record payment
-        <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary, fontWeight: 500, mt: 0.25 }}>
-          {fee.student_name} · due {fee.due_date}
-        </Typography>
-      </DialogTitle>
-      <DialogContent>
+    <Dialog open onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <DialogHeader
+        icon={<PaidRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Record Payment"
+        subtitle={`${fee.student_name} · due ${fee.due_date}`}
+        onClose={() => !mut.isPending && onClose()}
+        disabled={mut.isPending}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
         {/* Snapshot strip */}
         <Box sx={{
           mb: 2.5, p: 2, borderRadius: 2,
@@ -565,11 +618,18 @@ function PaymentDialog({
           open={!!refundTarget}
           onClose={() => !refundMut.isPending && setRefundTarget(null)}
           maxWidth="xs" fullWidth
+          PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
         >
-          <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>Refund payment</DialogTitle>
-          <DialogContent>
+          <DialogHeader
+            icon={<UndoRoundedIcon sx={{ fontSize: 20 }} />}
+            title="Refund Payment"
+            subtitle={refundTarget ? `${fmtINR(refundTarget.amount_paid)} via ${refundTarget.mode}` : undefined}
+            onClose={() => !refundMut.isPending && setRefundTarget(null)}
+            disabled={refundMut.isPending}
+          />
+          <DialogContent sx={{ py: 2.5 }}>
             {refundTarget && (
-              <Stack gap={2} mt={0.5}>
+              <Stack gap={2}>
                 <Box sx={{
                   p: 1.5, borderRadius: 2,
                   border: `1px solid ${BRAND.divider}`, bgcolor: BRAND.surface,
@@ -585,7 +645,7 @@ function PaymentDialog({
                   label="Reason (optional)"
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
-                  multiline minRows={2} fullWidth
+                  multiline minRows={2} size="small" fullWidth
                 />
                 <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>
                   The fee status will recalculate automatically. This action cannot be undone.
@@ -593,22 +653,34 @@ function PaymentDialog({
               </Stack>
             )}
           </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setRefundTarget(null)} disabled={refundMut.isPending}>Cancel</Button>
+          <DialogFooter>
+            <Button onClick={() => setRefundTarget(null)} disabled={refundMut.isPending}
+              sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+              Cancel
+            </Button>
             <Button
-              variant="contained" color="error"
-              startIcon={<UndoRoundedIcon />}
+              variant="contained"
+              startIcon={refundMut.isPending ? <CircularProgress size={13} color="inherit" /> : <UndoRoundedIcon />}
               onClick={() => refundMut.mutate()}
               disabled={refundMut.isPending}
+              sx={{ fontSize: 13, fontWeight: 600, px: 2.5, background: '#DC2626', '&:hover': { background: '#B91C1C' } }}
             >
               {refundMut.isPending ? 'Refunding…' : 'Confirm refund'}
             </Button>
-          </DialogActions>
+          </DialogFooter>
         </Dialog>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
+      <DialogFooter>
+        <Button onClick={onClose} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>Close</Button>
+        <Button
+          variant="outlined"
+          startIcon={<ReceiptLongRoundedIcon />}
+          onClick={() => { onClose(); onInvoice(fee!); }}
+          sx={{ fontSize: 13, fontWeight: 600, borderColor: BRAND.primary, color: BRAND.primary }}
+        >
+          Generate Invoice
+        </Button>
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -645,14 +717,15 @@ function InvoiceDialog({
   if (!fee) return null;
 
   return (
-    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
-        Invoice
-        {data && (
-          <span style={{ color: BRAND.textSecondary, fontWeight: 500 }}> · {data.invoice_number}</span>
-        )}
-      </DialogTitle>
-      <DialogContent>
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <DialogHeader
+        icon={<ReceiptLongRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Invoice"
+        subtitle={data?.invoice_number}
+        onClose={onClose}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
         {isLoading && (
           <Box sx={{ py: 6, textAlign: 'center' }}>
             <CircularProgress size={28} sx={{ color: BRAND.primary }} />
@@ -665,17 +738,22 @@ function InvoiceDialog({
         )}
         {data && <InvoiceBody data={data} />}
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Close</Button>
+      <DialogFooter>
+        <Button onClick={onClose} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>Close</Button>
         <Button
           variant="contained"
           startIcon={<DownloadRoundedIcon />}
           onClick={() => window.print()}
           disabled={!data}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}
         >
           Print / save PDF
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -879,14 +957,16 @@ function ReminderDialog({
   if (!fee) return null;
 
   return (
-    <Dialog open onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 0.5 }}>
-        Send fee reminder
-        <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary, fontWeight: 500, mt: 0.25 }}>
-          {fee.student_name} · {fmtINR(fee.outstanding)} outstanding · due {fee.due_date}
-        </Typography>
-      </DialogTitle>
-      <DialogContent>
+    <Dialog open onClose={() => !mut.isPending && onClose()} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <DialogHeader
+        icon={<NotificationsActiveRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Send Fee Reminder"
+        subtitle={`${fee.student_name} · ${fmtINR(fee.outstanding)} outstanding · due ${fee.due_date}`}
+        onClose={() => !mut.isPending && onClose()}
+        disabled={mut.isPending}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
         {!fee.has_parent ? (
           <Box sx={{
             p: 2, borderRadius: 2, bgcolor: '#FEF2F2',
@@ -900,7 +980,7 @@ function ReminderDialog({
             </Typography>
           </Box>
         ) : (
-          <Stack gap={2} mt={0.5}>
+          <Stack gap={2}>
             <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary }}>
               The parent will receive an in-app notification. Leave the message blank to
               use the default reminder template.
@@ -909,7 +989,7 @@ function ReminderDialog({
               label="Custom message (optional)"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              multiline minRows={3} fullWidth
+              multiline minRows={3} size="small" fullWidth
               inputProps={{ maxLength: 1000 }}
               helperText={`${message.length} / 1000`}
             />
@@ -924,17 +1004,221 @@ function ReminderDialog({
           </Stack>
         )}
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={mut.isPending}>Cancel</Button>
+      <DialogFooter>
+        <Button onClick={onClose} disabled={mut.isPending} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          Cancel
+        </Button>
         <Button
           variant="contained"
-          startIcon={<NotificationsActiveRoundedIcon />}
+          startIcon={mut.isPending ? <CircularProgress size={13} color="inherit" /> : <NotificationsActiveRoundedIcon />}
           onClick={() => mut.mutate()}
           disabled={!fee.has_parent || mut.isPending}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}
         >
           {mut.isPending ? 'Sending…' : 'Send reminder'}
         </Button>
-      </DialogActions>
+      </DialogFooter>
+    </Dialog>
+  );
+}
+
+/* ------------------------------------------------------------------ Generate Bills dialog */
+function GenerateBillsDialog({
+  open,
+  onClose,
+  centerId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  centerId: string;
+}) {
+  const qc = useQueryClient();
+  const { showSnack } = useSnackbar();
+
+  const batchesQuery = useQuery({
+    queryKey: ['owner', 'batches', centerId],
+    queryFn: () => listOwnerBatches(centerId),
+    enabled: open,
+  });
+
+  const activeBatches: OwnerBatch[] = (batchesQuery.data ?? []).filter((b) => b.is_active);
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dueDate, setDueDate]   = useState(() => {
+    // Default to last day of current month
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  });
+  const [notes, setNotes]       = useState('');
+  const [result, setResult]     = useState<GenerateFromBatchesResult | null>(null);
+
+  // Select all when batches load
+  useMemo(() => {
+    if (open && activeBatches.length > 0 && selected.size === 0) {
+      setSelected(new Set(activeBatches.map((b) => b.id)));
+    }
+  }, [open, activeBatches.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const allChecked   = activeBatches.length > 0 && selected.size === activeBatches.length;
+  const someChecked  = selected.size > 0 && !allChecked;
+  const toggleAll    = () => setSelected(allChecked ? new Set() : new Set(activeBatches.map((b) => b.id)));
+
+  const totalStudents = activeBatches.filter((b) => selected.has(b.id)).reduce((s, b) => s + b.student_count, 0);
+
+  const mut = useMutation({
+    mutationFn: () =>
+      generateOwnerFeesFromBatches(centerId, {
+        batch_ids: Array.from(selected),
+        due_date: dueDate,
+        notes: notes.trim() || null,
+      }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['owner', 'fees', centerId] });
+      qc.invalidateQueries({ queryKey: ['owner', 'fees', 'summary', centerId] });
+      setResult(res);
+    },
+    onError: (e: Error) => showSnack(e.message, 'error'),
+  });
+
+  const handleClose = () => {
+    setResult(null);
+    setSelected(new Set());
+    setNotes('');
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={() => !mut.isPending && handleClose()} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <DialogHeader
+        icon={<AutoFixHighRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Generate Bills"
+        subtitle="Auto-raises one fee per student using each batch's set amount"
+        onClose={() => !mut.isPending && handleClose()}
+        disabled={mut.isPending}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
+        {result ? (
+          /* Success summary */
+          <Stack gap={2}>
+            <Box sx={{ p: 2, borderRadius: 2, bgcolor: '#ECFDF5', border: '1px solid #6EE7B7' }}>
+              <Typography sx={{ fontSize: 15, fontWeight: 700, color: STATUS_COLORS.approved }}>
+                {result.created} bill{result.created !== 1 ? 's' : ''} generated
+                {result.skipped > 0 ? `, ${result.skipped} skipped (already billed this month)` : ''}
+              </Typography>
+            </Box>
+            {result.batches.map((b) => (
+              <Stack key={b.batch_id} direction="row" justifyContent="space-between" alignItems="center"
+                sx={{ px: 1.5, py: 1, borderRadius: 1.5, bgcolor: BRAND.surface }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{b.batch_name}</Typography>
+                <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary }}>
+                  {b.created} created{b.skipped > 0 ? `, ${b.skipped} skipped` : ''}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+        ) : (
+          <Stack gap={2.5}>
+            {/* Batch list */}
+            <Box>
+              <Stack direction="row" alignItems="center" gap={1} mb={1}>
+                <Checkbox
+                  size="small" checked={allChecked} indeterminate={someChecked}
+                  onChange={toggleAll} sx={{ p: 0.5 }}
+                />
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: BRAND.textSecondary,
+                  textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                  {selected.size} of {activeBatches.length} batches selected · {totalStudents} students
+                </Typography>
+              </Stack>
+              <Box sx={{ border: `1px solid ${BRAND.divider}`, borderRadius: 2, overflow: 'hidden' }}>
+                {batchesQuery.isLoading ? (
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <CircularProgress size={22} sx={{ color: BRAND.primary }} />
+                  </Box>
+                ) : activeBatches.length === 0 ? (
+                  <Typography sx={{ p: 2.5, textAlign: 'center', fontSize: 13, color: BRAND.textSecondary }}>
+                    No active batches. Add batches with a fee amount first.
+                  </Typography>
+                ) : (
+                  activeBatches.map((b, i) => (
+                    <Stack
+                      key={b.id}
+                      direction="row" alignItems="center" gap={1.5}
+                      onClick={() => toggle(b.id)}
+                      sx={{
+                        px: 1.5, py: 1.25, cursor: 'pointer',
+                        borderTop: i > 0 ? `1px solid ${BRAND.divider}` : 'none',
+                        bgcolor: selected.has(b.id) ? BRAND.primary + '08' : 'transparent',
+                        '&:hover': { bgcolor: BRAND.primary + '0D' },
+                      }}
+                    >
+                      <Checkbox size="small" checked={selected.has(b.id)} onChange={() => toggle(b.id)}
+                        onClick={(e) => e.stopPropagation()} sx={{ p: 0.5 }} />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 13.5, fontWeight: 600 }} noWrap>
+                          {b.course_name} — {b.batch_name}
+                        </Typography>
+                        <Typography sx={{ fontSize: 11.5, color: BRAND.textSecondary }}>
+                          {b.student_count} student{b.student_count !== 1 ? 's' : ''}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: 14, fontWeight: 700, color: BRAND.primary, whiteSpace: 'nowrap' }}>
+                        {fmtINR(b.fee_amount)}
+                      </Typography>
+                    </Stack>
+                  ))
+                )}
+              </Box>
+            </Box>
+
+            {/* Due date */}
+            <TextField
+              fullWidth required size="small" label="Due date" type="date"
+              value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              helperText="Bills already raised for the same batch in the same month will be skipped."
+            />
+
+            <TextField
+              label="Notes (optional)" size="small" value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              multiline minRows={2} fullWidth
+            />
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogFooter>
+        <Button onClick={handleClose} disabled={mut.isPending} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          {result ? 'Close' : 'Cancel'}
+        </Button>
+        {!result && (
+          <Button
+            variant="contained"
+            startIcon={mut.isPending ? <CircularProgress size={13} color="inherit" /> : <AutoFixHighRoundedIcon />}
+            onClick={() => mut.mutate()}
+            disabled={selected.size === 0 || !dueDate || mut.isPending}
+            sx={{
+              fontSize: 13, fontWeight: 600, px: 2.5,
+              background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+              '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+            }}
+          >
+            {mut.isPending ? 'Generating…' : `Generate for ${selected.size} batch${selected.size !== 1 ? 'es' : ''}`}
+          </Button>
+        )}
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -949,6 +1233,7 @@ export default function OwnerFeesPage() {
   const [search, setSearch]   = useState('');
 
   const [adding, setAdding]               = useState(false);
+  const [generating, setGenerating]       = useState(false);
   const [bulking, setBulking]             = useState(false);
   const [editing, setEditing]             = useState<OwnerFee | null>(null);
   const [paying, setPaying]               = useState<OwnerFee | null>(null);
@@ -1053,7 +1338,19 @@ export default function OwnerFeesPage() {
           <Button variant="outlined" startIcon={<GroupAddRoundedIcon />} onClick={() => setBulking(true)}>
             Bill batch
           </Button>
-          <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setAdding(true)}>
+          <Button
+            variant="contained"
+            startIcon={<AutoFixHighRoundedIcon />}
+            onClick={() => setGenerating(true)}
+            sx={{
+              fontWeight: 600,
+              background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+              '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+            }}
+          >
+            Generate Bills
+          </Button>
+          <Button variant="outlined" startIcon={<AddRoundedIcon />} onClick={() => setAdding(true)}>
             New fee
           </Button>
         </Stack>
@@ -1303,9 +1600,9 @@ export default function OwnerFeesPage() {
                               </IconButton>
                             </span>
                           </Tooltip>
-                          <Tooltip title="Invoice">
+                          <Tooltip title="Generate Invoice">
                             <IconButton size="small" onClick={() => setInvoicing(f)}>
-                              <VisibilityRoundedIcon sx={{ fontSize: 18 }} />
+                              <ReceiptLongRoundedIcon sx={{ fontSize: 18 }} />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Edit">
@@ -1403,10 +1700,11 @@ export default function OwnerFeesPage() {
       )}
 
       {/* Modals */}
-      <CreateFeeDialog open={adding} onClose={() => setAdding(false)} centerId={centerId} />
-      <BulkFeesDialog  open={bulking} onClose={() => setBulking(false)} centerId={centerId} />
+      <CreateFeeDialog     open={adding}     onClose={() => setAdding(false)}     centerId={centerId} />
+      <GenerateBillsDialog open={generating} onClose={() => setGenerating(false)} centerId={centerId} />
+      <BulkFeesDialog      open={bulking}    onClose={() => setBulking(false)}    centerId={centerId} />
       <EditFeeDialog   fee={editing} centerId={centerId} onClose={() => setEditing(null)} />
-      <PaymentDialog   fee={paying}  centerId={centerId} onClose={() => setPaying(null)} />
+      <PaymentDialog   fee={paying}  centerId={centerId} onClose={() => setPaying(null)} onInvoice={(f) => setInvoicing(f)} />
       <InvoiceDialog   fee={invoicing} centerId={centerId} onClose={() => setInvoicing(null)} />
       <ReminderDialog  fee={reminding} centerId={centerId} onClose={() => setReminding(null)} />
 

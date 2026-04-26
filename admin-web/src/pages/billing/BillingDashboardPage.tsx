@@ -163,7 +163,7 @@ function InvoiceModal({
           <Box>
             <Typography variant="h6" fontWeight={700}>Invoice</Typography>
             <Typography variant="body2" color="text.secondary">
-              {bill.center_name} — {new Date(bill.billing_month + '-01').toLocaleString('default', { month: 'long', year: 'numeric' })}
+              {bill.owner_name} — {new Date(bill.billing_month + '-01').toLocaleString('default', { month: 'long', year: 'numeric' })}
             </Typography>
           </Box>
           <StatusBadge status={bill.payment_status} />
@@ -483,7 +483,7 @@ export default function BillingDashboardPage() {
                     sx={{ cursor: 'pointer', '&:hover': { bgcolor: BRAND.primaryBg } }}
                     onClick={() => setViewBill(b)}
                   >
-                    <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>{b.center_name}</TableCell>
+                    <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>{b.owner_name}</TableCell>
                     <TableCell sx={{ fontSize: 13 }}>
                       {new Date(b.billing_month + '-01').toLocaleString('default', { month: 'short', year: 'numeric' })}
                     </TableCell>

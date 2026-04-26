@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Grid, Chip, Avatar,
   Table, TableBody, TableCell, TableHead, TableRow, TableContainer,
   Paper, TextField, InputAdornment, Drawer, Divider, Button, Stack,
-  CircularProgress, Alert, IconButton, Tooltip, LinearProgress,
+  CircularProgress, Alert, IconButton, LinearProgress,
   Tab, Tabs, Dialog, DialogTitle, DialogContent, DialogActions,
   Select, MenuItem, FormControl, InputLabel,
 } from '@mui/material';
@@ -14,16 +14,15 @@ import StorageRoundedIcon from '@mui/icons-material/StorageRounded';
 import ReceiptRoundedIcon from '@mui/icons-material/ReceiptRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import UpgradeRoundedIcon from '@mui/icons-material/UpgradeRounded';
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import WarningRoundedIcon from '@mui/icons-material/WarningRounded';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   getSubscriptionDashboard, getSubscriptionPlans, getStorageAddOns,
-  getCenterSubscriptions, getCenterSubscriptionDetail,
-  assignPlan, purchaseStorage, refreshUsage, generateBill, updateBillingStatus,
-  type CenterSubscriptionSummary, type SubscriptionPlan, type StorageAddOn,
+  getOwnerSubscriptions, getOwnerSubscriptionDetail,
+  assignPlan, purchaseStorage, generateBill, updateBillingStatus,
+  type OwnerSubscriptionSummary, type SubscriptionPlan, type StorageAddOn,
 } from '../../api/subscription.api';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { BRAND } from '../../theme';
@@ -147,7 +146,7 @@ function PlanCard({
 function CenterSubscriptionDrawer({
   center, onClose,
 }: {
-  center: CenterSubscriptionSummary | null;
+  center: OwnerSubscriptionSummary | null;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -161,8 +160,8 @@ function CenterSubscriptionDrawer({
   const [selectedAddonId, setSelectedAddonId] = useState('');
 
   const { data: detail, isLoading } = useQuery({
-    queryKey: ['subscription-center', center?.center_id],
-    queryFn: () => getCenterSubscriptionDetail(center!.center_id),
+    queryKey: ['subscription-center', center?.owner_id],
+    queryFn: () => getOwnerSubscriptionDetail(center!.owner_id),
     enabled: !!center,
     staleTime: 30_000,
   });
@@ -180,13 +179,13 @@ function CenterSubscriptionDrawer({
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['subscription-center', center!.center_id] });
+    qc.invalidateQueries({ queryKey: ['subscription-center', center!.owner_id] });
     qc.invalidateQueries({ queryKey: ['subscription-centers'] });
     qc.invalidateQueries({ queryKey: ['subscription-dashboard'] });
   };
 
   const assignMutation = useMutation({
-    mutationFn: () => assignPlan(center!.center_id, {
+    mutationFn: () => assignPlan(center!.owner_id, {
       plan_id: selectedPlanId,
       effective_date: effectiveDate || undefined,
       notes: assignNotes || undefined,
@@ -202,19 +201,13 @@ function CenterSubscriptionDrawer({
   });
 
   const storageMutation = useMutation({
-    mutationFn: () => purchaseStorage(center!.center_id, { add_on_id: selectedAddonId }),
+    mutationFn: () => purchaseStorage(center!.owner_id, { add_on_id: selectedAddonId }),
     onSuccess: () => { invalidate(); setStorageDialog(false); showSnack('Storage add-on purchased.', 'success'); },
     onError: () => showSnack('Failed to purchase storage.', 'error'),
   });
 
-  const refreshMutation = useMutation({
-    mutationFn: () => refreshUsage(center!.center_id),
-    onSuccess: (d) => { invalidate(); showSnack(`Usage refreshed. ${d.data?.student_count} students.`, 'success'); },
-    onError: () => showSnack('Failed to refresh usage.', 'error'),
-  });
-
   const billMutation = useMutation({
-    mutationFn: () => generateBill(center!.center_id),
+    mutationFn: () => generateBill(center!.owner_id),
     onSuccess: (d) => { invalidate(); showSnack(`Bill generated: ${fmt(d.data?.total_amount ?? 0)}`, 'success'); },
     onError: () => showSnack('Bill for this month may already exist.', 'warning'),
   });
@@ -246,11 +239,11 @@ function CenterSubscriptionDrawer({
               background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
               fontWeight: 700, fontSize: 16,
             }}>
-              {center.center_name.charAt(0).toUpperCase()}
+              {center.owner_name.charAt(0).toUpperCase()}
             </Avatar>
             <Box flex={1} minWidth={0}>
               <Typography fontWeight={700} fontSize={15} color="#fff" noWrap>
-                {center.center_name}
+                {center.owner_name}
               </Typography>
               <Chip
                 size="small"
@@ -263,16 +256,6 @@ function CenterSubscriptionDrawer({
               />
             </Box>
             <Stack direction="row" spacing={0.5}>
-              <Tooltip title="Refresh usage">
-                <IconButton
-                  size="small"
-                  onClick={() => refreshMutation.mutate()}
-                  disabled={refreshMutation.isPending}
-                  sx={{ color: 'rgba(255,255,255,0.7)' }}
-                >
-                  <RefreshRoundedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
               <IconButton onClick={onClose} sx={{ color: 'rgba(255,255,255,0.7)' }}>
                 <CloseRoundedIcon />
               </IconButton>
@@ -656,7 +639,7 @@ const PLAN_FILTER_OPTIONS = ['All', 'Free', 'Basic', 'Standard', 'Premium'];
 export default function SubscriptionPage() {
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('All');
-  const [selected, setSelected] = useState<CenterSubscriptionSummary | null>(null);
+  const [selected, setSelected] = useState<OwnerSubscriptionSummary | null>(null);
   const navigate = useNavigate();
 
   const { data: dashboard, isLoading: dashLoading } = useQuery({
@@ -667,7 +650,7 @@ export default function SubscriptionPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['subscription-centers', { search, planFilter }],
-    queryFn: () => getCenterSubscriptions({
+    queryFn: () => getOwnerSubscriptions({
       search: search || undefined,
       plan_name: planFilter !== 'All' ? planFilter : undefined,
       size: 100,
@@ -803,16 +786,16 @@ export default function SubscriptionPage() {
                   const studentOver = c.current_student_count > c.student_limit;
                   const storageOver = c.storage_used_mb > c.total_storage_mb;
                   return (
-                    <TableRow key={c.center_id} hover sx={{ cursor: 'pointer' }} onClick={() => setSelected(c)}>
+                    <TableRow key={c.owner_id} hover sx={{ cursor: 'pointer' }} onClick={() => setSelected(c)}>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Avatar sx={{
                             width: 30, height: 30, fontSize: 12, fontWeight: 700,
                             bgcolor: planC.bg, color: planC.text,
                           }}>
-                            {c.center_name.charAt(0).toUpperCase()}
+                            {c.owner_name.charAt(0).toUpperCase()}
                           </Avatar>
-                          <Typography fontSize={13} fontWeight={600}>{c.center_name}</Typography>
+                          <Typography fontSize={13} fontWeight={600}>{c.owner_name}</Typography>
                         </Box>
                       </TableCell>
                       <TableCell>

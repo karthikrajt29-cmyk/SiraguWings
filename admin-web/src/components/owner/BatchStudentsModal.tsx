@@ -6,9 +6,7 @@ import {
   Checkbox,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   IconButton,
   InputAdornment,
@@ -22,6 +20,7 @@ import {
 import SearchRoundedIcon  from '@mui/icons-material/SearchRounded';
 import DeleteRoundedIcon  from '@mui/icons-material/DeleteRounded';
 import AddRoundedIcon     from '@mui/icons-material/AddRounded';
+import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listOwnerBatchStudents,
@@ -32,6 +31,7 @@ import {
   type OwnerStudent,
 } from '../../api/owner.api';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import { DialogHeader, DialogFooter } from '../common/DialogHeader';
 import { BRAND, STATUS_COLORS } from '../../theme';
 
 interface Props {
@@ -49,14 +49,12 @@ export default function BatchStudentsModal({ open, onClose, centerId, batchId, b
   const [search, setSearch] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
 
-  /* ── Roster ── */
   const rosterQuery = useQuery({
     queryKey: ['owner', 'batchStudents', centerId, batchId],
     queryFn: () => listOwnerBatchStudents(centerId, batchId!),
     enabled: open && !!batchId,
   });
 
-  /* ── All center students (for the "add" tab) ── */
   const allStudentsQuery = useQuery({
     queryKey: ['owner', 'students', centerId],
     queryFn: () => listOwnerStudents(centerId),
@@ -90,10 +88,8 @@ export default function BatchStudentsModal({ open, onClose, centerId, batchId, b
     );
   }, [rosterQuery.data, search]);
 
-  /* ── Mutations ── */
   const addMut = useMutation({
     mutationFn: async (ids: string[]) => {
-      // The endpoint takes one student at a time — chain them.
       for (const sid of ids) {
         await addOwnerBatchStudent(centerId, batchId!, sid);
       }
@@ -109,8 +105,7 @@ export default function BatchStudentsModal({ open, onClose, centerId, batchId, b
   });
 
   const removeMut = useMutation({
-    mutationFn: (studentId: string) =>
-      removeOwnerBatchStudent(centerId, batchId!, studentId),
+    mutationFn: (studentId: string) => removeOwnerBatchStudent(centerId, batchId!, studentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['owner', 'batchStudents', centerId, batchId] });
       showSnack('Student removed from batch', 'success');
@@ -121,8 +116,7 @@ export default function BatchStudentsModal({ open, onClose, centerId, batchId, b
   const toggle = (id: string) => {
     setPicked((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -135,49 +129,54 @@ export default function BatchStudentsModal({ open, onClose, centerId, batchId, b
   };
 
   return (
-    <Dialog open={open} onClose={close} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
-        Batch students
-        <Typography sx={{ fontSize: 12.5, color: BRAND.textSecondary, fontWeight: 500, mt: 0.25 }}>
-          {batchName}
-        </Typography>
-      </DialogTitle>
-      <Box sx={{ borderBottom: `1px solid ${BRAND.divider}` }}>
+    <Dialog open={open} onClose={close} maxWidth="sm" fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}>
+
+      <DialogHeader
+        icon={<PeopleAltRoundedIcon sx={{ fontSize: 20 }} />}
+        title="Batch Students"
+        subtitle={batchName}
+        onClose={close}
+        disabled={addMut.isPending}
+      />
+
+      {/* Mode tabs */}
+      <Box sx={{ borderBottom: `1px solid ${BRAND.divider}`, bgcolor: '#fff' }}>
         <Tabs
           value={tab}
-          onChange={(_, v) => setTab(v)}
-          sx={{
-            px: 2,
-            '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 },
-          }}
+          onChange={(_, v) => { setTab(v); setSearch(''); }}
+          sx={{ px: 2, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 } }}
         >
           <Tab value="roster" label={`Roster (${rosterQuery.data?.length ?? 0})`} />
           <Tab value="add"    label="Add students" />
         </Tabs>
       </Box>
-      <DialogContent sx={{ p: 0 }}>
-        <Box sx={{ px: 2, pt: 2 }}>
-          <TextField
-            size="small"
-            fullWidth
-            placeholder={tab === 'roster' ? 'Search this batch…' : 'Search center students…'}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchRoundedIcon sx={{ fontSize: 18, color: BRAND.textSecondary }} />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Box>
 
+      {/* Search */}
+      <Box sx={{ px: 2, pt: 2, pb: 1, bgcolor: '#fff' }}>
+        <TextField
+          size="small"
+          fullWidth
+          placeholder={tab === 'roster' ? 'Search this batch…' : 'Search center students…'}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchRoundedIcon sx={{ fontSize: 18, color: BRAND.textSecondary }} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+        />
+      </Box>
+
+      <DialogContent sx={{ p: 0, overflowY: 'auto', flex: 1 }}>
         {tab === 'roster' ? (
           <RosterList
             data={filteredRoster}
             loading={rosterQuery.isLoading}
-            removing={removeMut.isPending ? removeMut.variables : null}
+            removing={removeMut.isPending ? removeMut.variables as string : null}
             onRemove={(sid) => removeMut.mutate(sid)}
           />
         ) : (
@@ -189,19 +188,34 @@ export default function BatchStudentsModal({ open, onClose, centerId, batchId, b
           />
         )}
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={close} disabled={addMut.isPending}>Close</Button>
+
+      <DialogFooter
+        hint={
+          tab === 'add' && eligible.length > 0
+            ? `${eligible.length} eligible · ${picked.size} selected`
+            : undefined
+        }
+      >
+        <Button onClick={close} disabled={addMut.isPending}
+          sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          Close
+        </Button>
         {tab === 'add' && (
           <Button
             variant="contained"
-            startIcon={<AddRoundedIcon />}
+            startIcon={addMut.isPending ? <CircularProgress size={13} color="inherit" /> : <AddRoundedIcon />}
             disabled={picked.size === 0 || addMut.isPending}
             onClick={() => addMut.mutate(Array.from(picked))}
+            sx={{
+              fontSize: 13, fontWeight: 600, px: 2.5,
+              background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+              '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+            }}
           >
             {addMut.isPending ? 'Adding…' : `Add ${picked.size || ''} student${picked.size === 1 ? '' : 's'}`}
           </Button>
         )}
-      </DialogActions>
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -218,11 +232,7 @@ function RosterList({
   onRemove: (id: string) => void;
 }) {
   if (loading) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <CircularProgress size={24} sx={{ color: BRAND.primary }} />
-      </Box>
-    );
+    return <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress size={24} sx={{ color: BRAND.primary }} /></Box>;
   }
   if (data.length === 0) {
     return (
@@ -234,7 +244,7 @@ function RosterList({
     );
   }
   return (
-    <Box sx={{ maxHeight: 360, overflowY: 'auto', mt: 1 }}>
+    <Box>
       {data.map((s) => (
         <Stack
           key={s.student_id}
@@ -242,13 +252,14 @@ function RosterList({
           alignItems="center"
           gap={1.5}
           sx={{
-            px: 2, py: 1.25,
+            px: 2.5, py: 1.5,
             '&:not(:last-child)': { borderBottom: `1px solid ${BRAND.divider}` },
           }}
         >
           <Avatar sx={{
-            width: 32, height: 32, bgcolor: BRAND.primaryBg, color: BRAND.primary,
-            fontSize: 12, fontWeight: 700,
+            width: 34, height: 34,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            fontSize: 12, fontWeight: 700, color: '#fff',
           }}>
             {s.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}
           </Avatar>
@@ -260,11 +271,7 @@ function RosterList({
             </Typography>
           </Box>
           <Tooltip title="Remove from batch">
-            <IconButton
-              size="small"
-              onClick={() => onRemove(s.student_id)}
-              disabled={removing === s.student_id}
-            >
+            <IconButton size="small" onClick={() => onRemove(s.student_id)} disabled={removing === s.student_id}>
               <DeleteRoundedIcon sx={{ fontSize: 18, color: STATUS_COLORS.rejected }} />
             </IconButton>
           </Tooltip>
@@ -286,11 +293,7 @@ function AddList({
   onToggle: (id: string) => void;
 }) {
   if (loading) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <CircularProgress size={24} sx={{ color: BRAND.primary }} />
-      </Box>
-    );
+    return <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress size={24} sx={{ color: BRAND.primary }} /></Box>;
   }
   if (data.length === 0) {
     return (
@@ -303,13 +306,8 @@ function AddList({
   }
   return (
     <>
-      <Box sx={{ px: 2, pt: 1.5, pb: 1, display: 'flex', justifyContent: 'space-between' }}>
-        <Typography sx={{ fontSize: 11.5, color: BRAND.textSecondary, fontWeight: 600 }}>
-          {data.length} eligible · {picked.size} selected
-        </Typography>
-      </Box>
       <Divider />
-      <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
+      <Box>
         {data.map((s) => {
           const checked = picked.has(s.id);
           return (
@@ -320,17 +318,19 @@ function AddList({
               gap={1.5}
               onClick={() => onToggle(s.id)}
               sx={{
-                px: 2, py: 1.25,
+                px: 2.5, py: 1.5,
                 cursor: 'pointer',
                 bgcolor: checked ? BRAND.primaryBg : 'transparent',
+                transition: 'background 0.12s',
                 '&:hover': { bgcolor: checked ? BRAND.primaryBgHover : BRAND.surface },
                 '&:not(:last-child)': { borderBottom: `1px solid ${BRAND.divider}` },
               }}
             >
-              <Checkbox checked={checked} size="small" sx={{ p: 0 }} />
+              <Checkbox checked={checked} size="small" sx={{ p: 0, color: BRAND.primary }} />
               <Avatar sx={{
-                width: 32, height: 32, bgcolor: BRAND.primaryBg, color: BRAND.primary,
-                fontSize: 12, fontWeight: 700,
+                width: 34, height: 34,
+                background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+                fontSize: 12, fontWeight: 700, color: '#fff',
               }}>
                 {s.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}
               </Avatar>

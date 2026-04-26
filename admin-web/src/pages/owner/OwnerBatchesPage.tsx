@@ -8,9 +8,7 @@ import {
   Chip,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -46,6 +44,7 @@ import {
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import BatchStudentsModal from '../../components/owner/BatchStudentsModal';
+import { DialogHeader, DialogFooter } from '../../components/common/DialogHeader';
 import { BRAND, STATUS_COLORS } from '../../theme';
 
 function BatchForm({
@@ -63,6 +62,7 @@ function BatchForm({
   onClose: () => void;
   onSubmit: (data: OwnerBatchCreatePayload | OwnerBatchUpdatePayload) => void;
 }) {
+
   const [courseName, setCourseName] = useState(initial?.course_name ?? '');
   const [batchName, setBatchName]   = useState(initial?.batch_name ?? '');
   const [classDays, setClassDays]   = useState(initial?.class_days ?? 'Mon-Fri');
@@ -100,25 +100,30 @@ function BatchForm({
 
   return (
     <>
-      <DialogTitle sx={{ fontWeight: 700 }}>
-        {isEdit ? 'Edit Batch' : 'Create Batch'}
-      </DialogTitle>
-      <DialogContent>
-        <Stack gap={2} mt={0.5}>
+      <DialogHeader
+        icon={isEdit
+          ? <EditRoundedIcon sx={{ fontSize: 20 }} />
+          : <GroupsRoundedIcon sx={{ fontSize: 20 }} />}
+        title={isEdit ? 'Edit Batch' : 'Create Batch'}
+        onClose={onClose}
+        disabled={saving}
+      />
+      <DialogContent sx={{ py: 2.5 }}>
+        <Stack gap={2}>
           <Stack direction="row" gap={2}>
-            <TextField label="Course name" value={courseName} onChange={(e) => setCourseName(e.target.value)} fullWidth autoFocus />
-            <TextField label="Batch name"  value={batchName}  onChange={(e) => setBatchName(e.target.value)}  fullWidth />
+            <TextField label="Course name" size="small" value={courseName} onChange={(e) => setCourseName(e.target.value)} fullWidth autoFocus />
+            <TextField label="Batch name"  size="small" value={batchName}  onChange={(e) => setBatchName(e.target.value)}  fullWidth />
           </Stack>
           <Stack direction="row" gap={2}>
-            <TextField label="Class days" value={classDays} onChange={(e) => setClassDays(e.target.value)} fullWidth helperText="e.g. Mon-Fri or Sat,Sun" />
-            <TextField label="Start time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
-            <TextField label="End time"   type="time" value={endTime}   onChange={(e) => setEndTime(e.target.value)}   InputLabelProps={{ shrink: true }} fullWidth />
+            <TextField label="Class days" size="small" value={classDays} onChange={(e) => setClassDays(e.target.value)} fullWidth helperText="e.g. Mon-Fri or Sat,Sun" />
+            <TextField label="Start time" size="small" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+            <TextField label="End time"   size="small" type="time" value={endTime}   onChange={(e) => setEndTime(e.target.value)}   InputLabelProps={{ shrink: true }} fullWidth />
           </Stack>
           <Stack direction="row" gap={2}>
-            <TextField label="Strength limit (optional)" type="number" value={strength} onChange={(e) => setStrength(e.target.value)} fullWidth />
-            <TextField label="Fee amount (₹)" type="number" value={fee} onChange={(e) => setFee(e.target.value)} fullWidth />
+            <TextField label="Strength limit (optional)" size="small" type="number" value={strength} onChange={(e) => setStrength(e.target.value)} fullWidth />
+            <TextField label="Fee amount (₹)" size="small" type="number" value={fee} onChange={(e) => setFee(e.target.value)} fullWidth />
           </Stack>
-          <TextField select label="Teacher (optional)" value={teacherId} onChange={(e) => setTeacherId(e.target.value)} fullWidth>
+          <TextField select size="small" label="Teacher (optional)" value={teacherId} onChange={(e) => setTeacherId(e.target.value)} fullWidth>
             <MenuItem value="">Unassigned</MenuItem>
             {teachers.map((t) => (
               <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
@@ -139,12 +144,26 @@ function BatchForm({
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button variant="contained" onClick={submit} disabled={!valid || saving}>
+      <DialogFooter>
+        <Button onClick={onClose} disabled={saving} sx={{ color: BRAND.textSecondary, fontSize: 13 }}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={saving
+            ? <CircularProgress size={13} color="inherit" />
+            : isEdit ? <EditRoundedIcon /> : <AddRoundedIcon />}
+          onClick={submit}
+          disabled={!valid || saving}
+          sx={{
+            fontSize: 13, fontWeight: 600, px: 2.5,
+            background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+            '&:hover': { background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primary})` },
+          }}
+        >
           {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create batch'}
         </Button>
-      </DialogActions>
+      </DialogFooter>
     </>
   );
 }
@@ -420,7 +439,8 @@ export default function OwnerBatchesPage() {
       )}
 
       {/* Add */}
-      <Dialog open={adding} onClose={() => setAdding(false)} maxWidth="sm" fullWidth>
+      <Dialog open={adding} onClose={() => setAdding(false)} maxWidth="sm" fullWidth
+        PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
         <BatchForm
           isEdit={false}
           teachers={teacherOptions}
@@ -431,7 +451,8 @@ export default function OwnerBatchesPage() {
       </Dialog>
 
       {/* Edit */}
-      <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="sm" fullWidth
+        PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
         {editing && (
           <BatchForm
             isEdit

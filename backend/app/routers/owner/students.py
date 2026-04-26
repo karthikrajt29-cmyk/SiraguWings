@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import Optional  # noqa: F401 — used in type annotations below
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -48,6 +48,8 @@ async def list_students(
         """
         SELECT s.id, s.name, s.date_of_birth, s.gender, s.parent_id,
                s.medical_notes, s.profile_image_url,
+               s.blood_group, s.current_class, s.school_name,
+               s.address, s.emergency_contact,
                cs.invite_status, cs.status, cs.added_at,
                p.name          AS parent_name,
                p.mobile_number AS parent_mobile
@@ -68,6 +70,9 @@ async def list_students(
             gender=r["gender"], parent_id=r["parent_id"],
             parent_name=r["parent_name"], parent_mobile=r["parent_mobile"],
             medical_notes=r["medical_notes"], profile_image_url=r["profile_image_url"],
+            blood_group=r["blood_group"], current_class=r["current_class"],
+            school_name=r["school_name"], address=r["address"],
+            emergency_contact=r["emergency_contact"],
             invite_status=r["invite_status"], status=r["status"],
             added_at=r["added_at"],
         )
@@ -93,36 +98,85 @@ async def create_student(
     await get_center_or_404(db, center_id, select="id")
     await _validate_gender(db, request.gender)
 
-    parent_id: Optional[uuid.UUID] = None
-    parent_name: Optional[str] = None
-    parent_mobile: Optional[str] = None
-    if request.parent_mobile:
-        parent = await db.fetchrow(
-            'SELECT id, name, mobile_number FROM "user" '
-            'WHERE mobile_number = $1 AND is_deleted = FALSE',
-            request.parent_mobile.strip(),
+    if not request.parent_id:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "parent_id is required. Use the parent picker to select or create a parent.",
         )
-        if parent:
-            parent_id = parent["id"]
-            parent_name = parent["name"]
-            parent_mobile = parent["mobile_number"]
+
+    # Parent must exist with role='Parent' AND be mapped to this center
+    # (either via user_role row or an existing child enrolled here).
+    parent = await db.fetchrow(
+        """
+        SELECT u.id, u.name, u.mobile_number
+        FROM "user" u
+        WHERE u.id = $1 AND u.is_deleted = FALSE
+          AND EXISTS (
+              SELECT 1 FROM user_role ur
+              WHERE ur.user_id = u.id AND ur.role = 'Parent'
+                AND ur.is_deleted = FALSE AND ur.is_active = TRUE
+          )
+        """,
+        request.parent_id,
+    )
+    if not parent:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Parent not found.")
+
+    mapped = await db.fetchrow(
+        """
+        SELECT 1
+        WHERE EXISTS (
+            SELECT 1 FROM user_role ur
+            WHERE ur.user_id = $1 AND ur.role = 'Parent'
+              AND ur.center_id = $2
+              AND ur.is_deleted = FALSE AND ur.is_active = TRUE
+        )
+        OR EXISTS (
+            SELECT 1 FROM student s
+            JOIN center_student cs ON cs.student_id = s.id AND cs.is_deleted = FALSE
+            WHERE s.parent_id = $1 AND s.is_deleted = FALSE AND cs.center_id = $2
+        )
+        """,
+        request.parent_id, center_id,
+    )
+    if not mapped:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Parent is not mapped to this center. Map them first via the picker.",
+        )
+
+    parent_id = parent["id"]
+    parent_name = parent["name"]
+    parent_mobile = parent["mobile_number"]
+
+    # Handle base64 photo — store the data URI directly in profile_image_url
+    profile_image_url: Optional[str] = None
+    if request.profile_image_base64:
+        raw = request.profile_image_base64.strip()
+        profile_image_url = raw if raw.startswith("data:") else f"data:image/jpeg;base64,{raw}"
 
     student_id = uuid.uuid4()
+    added_at = request.date_of_join or None  # None → use NOW() in SQL
     async with db.transaction():
         await db.execute(
             """
             INSERT INTO student (
                 id, parent_id, name, date_of_birth, gender, medical_notes,
+                profile_image_url, blood_group, current_class, school_name,
                 created_by_path, created_by, created_date,
                 is_active, is_deleted, version_number, source_system
             ) VALUES (
                 $1, $2, $3, $4, $5, $6,
-                'Center', $7, NOW() AT TIME ZONE 'UTC',
+                $7, $8, $9, $10,
+                'Center', $11, NOW() AT TIME ZONE 'UTC',
                 TRUE, FALSE, 1, 'OwnerPortal'
             )
             """,
             student_id, parent_id, request.name, request.date_of_birth,
-            request.gender, request.medical_notes, owner.user_id,
+            request.gender, request.medical_notes,
+            profile_image_url, request.blood_group, request.current_class,
+            request.school_name,
+            owner.user_id,
         )
 
         cs_row = await db.fetchrow(
@@ -131,19 +185,23 @@ async def create_student(
                 id, center_id, student_id, invite_status, status, added_at,
                 created_by, created_date, is_active, is_deleted, version_number, source_system
             ) VALUES (
-                gen_random_uuid(), $1, $2, 'Linked', 'Active', NOW() AT TIME ZONE 'UTC',
+                gen_random_uuid(), $1, $2, 'Linked', 'Active',
+                COALESCE($4, NOW() AT TIME ZONE 'UTC'),
                 $3, NOW() AT TIME ZONE 'UTC', TRUE, FALSE, 1, 'OwnerPortal'
             )
             RETURNING invite_status, status, added_at
             """,
-            center_id, student_id, owner.user_id,
+            center_id, student_id, owner.user_id, added_at,
         )
 
     return StudentSummary(
         id=student_id, name=request.name, date_of_birth=request.date_of_birth,
         gender=request.gender, parent_id=parent_id,
         parent_name=parent_name, parent_mobile=parent_mobile,
-        medical_notes=request.medical_notes, profile_image_url=None,
+        medical_notes=request.medical_notes, profile_image_url=profile_image_url,
+        blood_group=request.blood_group, current_class=request.current_class,
+        school_name=request.school_name, address=request.address,
+        emergency_contact=request.emergency_contact,
         invite_status=cs_row["invite_status"], status=cs_row["status"],
         added_at=cs_row["added_at"],
     )
@@ -177,26 +235,49 @@ async def update_student(
     if request.gender:
         await _validate_gender(db, request.gender)
 
-    fields = request.model_dump(exclude_none=True)
-    if not fields:
+    date_of_join = request.date_of_join
+    fields = request.model_dump(
+        exclude_none=True,
+        exclude={"profile_image_base64", "date_of_join"},
+    )
+
+    # Convert base64 photo to data URI and write into profile_image_url
+    if request.profile_image_base64:
+        raw = request.profile_image_base64.strip()
+        fields["profile_image_url"] = raw if raw.startswith("data:") else f"data:image/jpeg;base64,{raw}"
+
+    async with db.transaction():
+        if fields:
+            set_clauses = ", ".join(f"{k} = ${i+1}" for i, k in enumerate(fields))
+            values = list(fields.values())
+            idx = len(values) + 1
+            values.append(owner.user_id)
+            values.append(student_id)
+            await db.execute(
+                f"""
+                UPDATE student SET {set_clauses},
+                    modified_by = ${idx},
+                    modified_date = NOW() AT TIME ZONE 'UTC',
+                    version_number = version_number + 1
+                WHERE id = ${idx + 1}
+                """,
+                *values,
+            )
+
+        if date_of_join is not None:
+            await db.execute(
+                """
+                UPDATE center_student SET added_at = $1,
+                    modified_by = $2, modified_date = NOW() AT TIME ZONE 'UTC',
+                    version_number = version_number + 1
+                WHERE center_id = $3 AND student_id = $4 AND is_deleted = FALSE
+                """,
+                date_of_join, owner.user_id, center_id, student_id,
+            )
+
+    if not fields and date_of_join is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No fields provided to update.")
 
-    set_clauses = ", ".join(f"{k} = ${i+1}" for i, k in enumerate(fields))
-    values = list(fields.values())
-    idx = len(values) + 1
-    values.append(owner.user_id)
-    values.append(student_id)
-
-    await db.execute(
-        f"""
-        UPDATE student SET {set_clauses},
-            modified_by = ${idx},
-            modified_date = NOW() AT TIME ZONE 'UTC',
-            version_number = version_number + 1
-        WHERE id = ${idx + 1}
-        """,
-        *values,
-    )
     return SuccessResponse(message="Student updated.")
 
 

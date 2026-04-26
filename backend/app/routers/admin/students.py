@@ -277,7 +277,26 @@ async def create_student(
     admin: CurrentUser = Depends(require_admin),
 ) -> StudentSummary:
     await _validate_gender(db, request.gender)
-    parent_id = await _resolve_parent(db, request.parent_mobile)
+    # Prefer the explicit parent_id from the picker; fall back to the legacy
+    # mobile-lookup path for back-compat with existing tooling/scripts.
+    if request.parent_id:
+        parent_row = await db.fetchrow(
+            """
+            SELECT u.id FROM "user" u
+            WHERE u.id = $1 AND u.is_deleted = FALSE
+              AND EXISTS (
+                  SELECT 1 FROM user_role ur
+                  WHERE ur.user_id = u.id AND ur.role = 'Parent'
+                    AND ur.is_deleted = FALSE AND ur.is_active = TRUE
+              )
+            """,
+            request.parent_id,
+        )
+        if not parent_row:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Parent not found.")
+        parent_id = parent_row["id"]
+    else:
+        parent_id = await _resolve_parent(db, request.parent_mobile)
     student_id = await _insert_student(
         db,
         name=request.name, date_of_birth=request.date_of_birth,

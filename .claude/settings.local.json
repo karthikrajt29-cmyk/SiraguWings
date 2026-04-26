@@ -56,7 +56,16 @@
       "Bash(taskkill //PID 23280 //F)",
       "Bash(taskkill //PID 12420 //F)",
       "Bash(./venv/Scripts/python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload)",
-      "Bash(curl -s -w \"\\\\n%{http_code}\" http://localhost:8001/admin/centers?status=Approved\\\\&page=0\\\\&size=1 -H \"Authorization: Bearer fake_token_for_test\")"
+      "Bash(curl -s -w \"\\\\n%{http_code}\" http://localhost:8001/admin/centers?status=Approved\\\\&page=0\\\\&size=1 -H \"Authorization: Bearer fake_token_for_test\")",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\('app/routers/owner/parents.py'\\).read\\(\\)\\); ast.parse\\(open\\('app/routers/owner/students.py'\\).read\\(\\)\\); ast.parse\\(open\\('app/routers/admin/students.py'\\).read\\(\\)\\); ast.parse\\(open\\('app/schemas/center.py'\\).read\\(\\)\\); print\\('Syntax OK'\\)\")",
+      "Bash(python -c \"from app.routers.owner.fees import router; from app.routers.owner.batches import router; print\\('OK'\\)\")",
+      "Bash(python3 -c \"from app.routers.owner.fees import router as f; from app.routers.owner.batches import router as b; print\\('OK'\\)\")",
+      "Bash(python3 -m py_compile app/routers/owner/fees.py app/routers/owner/batches.py app/schemas/center.py)",
+      "Bash(python3 apply_013.py)",
+      "Read(//Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/**)",
+      "Bash(./venv/bin/python apply_013.py)",
+      "Bash(./venv/bin/python -m py_compile app/routers/admin/subscription.py app/schemas/subscription.py)",
+      "Bash(./venv/bin/python -m py_compile app/routers/admin/subscription.py app/routers/admin/billing.py app/schemas/subscription.py)"
     ]
   }
 }

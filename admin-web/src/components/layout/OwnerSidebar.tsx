@@ -1,13 +1,16 @@
+import { useState, useEffect } from 'react';
 import {
+  Avatar,
+  Badge,
   Box,
+  Collapse,
   Divider,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Typography,
-  Avatar,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import DashboardRoundedIcon          from '@mui/icons-material/DashboardRounded';
 import BusinessRoundedIcon           from '@mui/icons-material/BusinessRounded';
@@ -23,30 +26,183 @@ import CurrencyRupeeRoundedIcon      from '@mui/icons-material/CurrencyRupeeRoun
 import SettingsRoundedIcon           from '@mui/icons-material/SettingsRounded';
 import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import LogoutRoundedIcon             from '@mui/icons-material/LogoutRounded';
+import ExpandMoreRoundedIcon         from '@mui/icons-material/ExpandMoreRounded';
+import AddCircleRoundedIcon          from '@mui/icons-material/AddCircleRounded';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { BRAND } from '../../theme';
+import { useQuery }                  from '@tanstack/react-query';
+import { useAuth }                   from '../../contexts/AuthContext';
+import { getOwnerUnreadCount } from '../../api/owner.api';
+import { BRAND }                     from '../../theme';
 
-const NAV_ITEMS = [
-  { label: 'Dashboard',       icon: <DashboardRoundedIcon />,           path: '/owner/dashboard' },
-  { label: 'My Centers',      icon: <BusinessRoundedIcon />,            path: '/owner/centers' },
-  { label: 'Students',        icon: <SchoolRoundedIcon />,              path: '/owner/students' },
-  { label: 'Batches',         icon: <GroupsRoundedIcon />,              path: '/owner/batches' },
-  { label: 'Teachers',        icon: <SupervisorAccountRoundedIcon />,   path: '/owner/teachers' },
-  { label: 'Attendance',      icon: <EventAvailableRoundedIcon />,      path: '/owner/attendance' },
-  { label: 'Fees',            icon: <CurrencyRupeeRoundedIcon />,       path: '/owner/fees' },
-  { label: 'Parents',         icon: <FamilyRestroomRoundedIcon />,      path: '/owner/parents' },
-  { label: 'Reports',         icon: <AssessmentRoundedIcon />,          path: '/owner/reports' },
-  { label: 'Roles & Access',  icon: <ManageAccountsRoundedIcon />,      path: '/owner/roles' },
-  { label: 'Notifications',   icon: <NotificationsActiveRoundedIcon />, path: '/owner/notifications' },
-];
+interface NavChild {
+  label: string;
+  icon: React.ReactNode;
+  path: string;
+  badgeCount?: number;
+  onAdd?: () => void;
+  addTooltip?: string;
+}
 
-function NavItem({
+interface NavGroup {
+  groupLabel: string;
+  children: NavChild[];
+}
+
+interface StandaloneItem {
+  label: string;
+  icon: React.ReactNode;
+  path: string;
+}
+
+// ── Sub-nav item (indented child) ────────────────────────────────────────────
+function SubNavItem({
+  item,
+  active,
+  badgeCount,
+  onClick,
+}: {
+  item: NavChild;
+  active: boolean;
+  badgeCount?: number;
+  onClick: () => void;
+}) {
+  return (
+    <ListItemButton
+      onClick={onClick}
+      sx={{
+        borderRadius: '8px',
+        mb: 0.25,
+        pl: 4.5,
+        pr: item.onAdd ? 0.5 : 1.5,
+        py: 0.75,
+        minHeight: 38,
+        position: 'relative',
+        transition: 'all 0.15s ease',
+        bgcolor: active ? BRAND.primaryBg : 'transparent',
+        '&:hover': {
+          bgcolor: active ? BRAND.primaryBgHover : 'rgba(255,255,255,0.05)',
+          '& .sidebar-add-btn': { opacity: 1 },
+        },
+        '& .MuiListItemIcon-root': {
+          color:    active ? BRAND.primary : 'rgba(255,255,255,0.4)',
+          minWidth: 30,
+          transition: 'color 0.15s',
+        },
+        '& .MuiListItemText-primary': {
+          fontSize:   13,
+          fontWeight: active ? 600 : 400,
+          color:      active ? BRAND.navyTextActive : BRAND.navyText,
+          transition: 'all 0.15s',
+        },
+      }}
+    >
+      {active && (
+        <Box sx={{
+          position: 'absolute', left: 0, top: '20%',
+          height: '60%', width: 3,
+          borderRadius: '0 3px 3px 0',
+          bgcolor: BRAND.primary,
+        }} />
+      )}
+      <ListItemIcon>
+        <Badge
+          badgeContent={badgeCount}
+          max={99}
+          sx={{
+            '& .MuiBadge-badge': {
+              bgcolor: BRAND.primary,
+              color: '#fff',
+              fontSize: 9,
+              height: 16,
+              minWidth: 16,
+              padding: '0 4px',
+            },
+          }}
+        >
+          {item.icon}
+        </Badge>
+      </ListItemIcon>
+      <ListItemText primary={item.label} />
+      {item.onAdd && (
+        <Tooltip title={item.addTooltip ?? 'Add'} placement="right">
+          <Box
+            className="sidebar-add-btn"
+            onClick={(e) => { e.stopPropagation(); item.onAdd!(); }}
+            sx={{
+              opacity: 0,
+              transition: 'opacity 0.15s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 26, height: 26, borderRadius: '7px', flexShrink: 0,
+              color: BRAND.primary,
+              '&:hover': { bgcolor: 'rgba(232,93,4,0.15)' },
+            }}
+          >
+            <AddCircleRoundedIcon sx={{ fontSize: 16 }} />
+          </Box>
+        </Tooltip>
+      )}
+    </ListItemButton>
+  );
+}
+
+// ── Group header (collapsible) ────────────────────────────────────────────────
+function NavGroupHeader({
+  label,
+  isOpen,
+  isGroupActive,
+  onToggle,
+}: {
+  label: string;
+  isOpen: boolean;
+  isGroupActive: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Box
+      onClick={onToggle}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        px: 2,
+        py: 0.75,
+        mt: 0.5,
+        mb: 0.25,
+        borderRadius: '8px',
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+        '&:hover': { bgcolor: 'rgba(255,255,255,0.04)' },
+      }}
+    >
+      <Typography sx={{
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.9,
+        textTransform: 'uppercase',
+        color: isGroupActive
+          ? 'rgba(232,93,4,0.85)'
+          : 'rgba(255,255,255,0.3)',
+        transition: 'color 0.15s',
+      }}>
+        {label}
+      </Typography>
+      <ExpandMoreRoundedIcon sx={{
+        fontSize: 15,
+        color: isGroupActive ? 'rgba(232,93,4,0.7)' : 'rgba(255,255,255,0.2)',
+        transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+        transition: 'transform 0.2s ease',
+      }} />
+    </Box>
+  );
+}
+
+// ── Standalone nav item (top-level, no group) ─────────────────────────────────
+function StandaloneNavItem({
   item,
   active,
   onClick,
 }: {
-  item: { label: string; icon: React.ReactNode; path?: string };
+  item: { label: string; icon: React.ReactNode };
   active: boolean;
   onClick: () => void;
 }) {
@@ -93,11 +249,111 @@ function NavItem({
   );
 }
 
+// ── Main sidebar ──────────────────────────────────────────────────────────────
 export default function OwnerSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, logout, isAdmin, isOwner, setActivePortal } = useAuth();
   const isDualRole = isAdmin && isOwner;
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['owner', 'notifications', 'unread'],
+    queryFn: getOwnerUnreadCount,
+    refetchInterval: 60_000,
+  });
+  const unreadCount = (unreadData as { unread: number } | undefined)?.unread ?? 0;
+
+  const NAV_GROUPS: NavGroup[] = [
+    {
+      groupLabel: 'Academic',
+      children: [
+        {
+          label: 'Students',
+          icon: <SchoolRoundedIcon sx={{ fontSize: 18 }} />,
+          path: '/owner/students',
+          onAdd: () => navigate('/owner/students?add=1'),
+          addTooltip: 'Add student',
+        },
+        { label: 'Batches',    icon: <GroupsRoundedIcon sx={{ fontSize: 18 }} />,             path: '/owner/batches' },
+        { label: 'Attendance', icon: <EventAvailableRoundedIcon sx={{ fontSize: 18 }} />,    path: '/owner/attendance' },
+      ],
+    },
+    {
+      groupLabel: 'Finance',
+      children: [
+        { label: 'Fees & Invoices', icon: <CurrencyRupeeRoundedIcon sx={{ fontSize: 18 }} />, path: '/owner/fees' },
+      ],
+    },
+    {
+      groupLabel: 'People',
+      children: [
+        { label: 'Teachers', icon: <SupervisorAccountRoundedIcon sx={{ fontSize: 18 }} />, path: '/owner/teachers' },
+        { label: 'Parents',  icon: <FamilyRestroomRoundedIcon sx={{ fontSize: 18 }} />,   path: '/owner/parents' },
+      ],
+    },
+    {
+      groupLabel: 'Centers',
+      children: [
+        { label: 'My Centers', icon: <BusinessRoundedIcon sx={{ fontSize: 18 }} />, path: '/owner/centers' },
+      ],
+    },
+    {
+      groupLabel: 'Reports & Data',
+      children: [
+        { label: 'Reports', icon: <AssessmentRoundedIcon sx={{ fontSize: 18 }} />, path: '/owner/reports' },
+      ],
+    },
+    {
+      groupLabel: 'Communication',
+      children: [
+        {
+          label: 'Notifications',
+          icon: <NotificationsActiveRoundedIcon sx={{ fontSize: 18 }} />,
+          path: '/owner/notifications',
+          badgeCount: unreadCount,
+        },
+      ],
+    },
+  ];
+
+  const SYSTEM_ITEMS: StandaloneItem[] = [
+    { label: 'Roles & Access', icon: <ManageAccountsRoundedIcon />,  path: '/owner/roles' },
+    { label: 'Settings',       icon: <SettingsRoundedIcon />,         path: '/owner/settings' },
+  ];
+
+  // Determine which groups are active (any child matches current route)
+  const activeGroups = NAV_GROUPS.reduce<Record<string, boolean>>((acc, group) => {
+    acc[group.groupLabel] = group.children.some(
+      (c) => location.pathname === c.path || location.pathname.startsWith(c.path + '/'),
+    );
+    return acc;
+  }, {});
+
+  // Auto-expand groups that contain the active route; persist others in state
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    NAV_GROUPS.reduce<Record<string, boolean>>((acc, group) => {
+      acc[group.groupLabel] = group.children.some(
+        (c) => location.pathname === c.path || location.pathname.startsWith(c.path + '/'),
+      );
+      return acc;
+    }, {}),
+  );
+
+  // When route changes, ensure parent group is open
+  useEffect(() => {
+    NAV_GROUPS.forEach((group) => {
+      const hasActive = group.children.some(
+        (c) => location.pathname === c.path || location.pathname.startsWith(c.path + '/'),
+      );
+      if (hasActive) {
+        setOpenGroups((prev) => ({ ...prev, [group.groupLabel]: true }));
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  const toggleGroup = (label: string) =>
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
 
   const initials = profile?.name
     ? profile.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -139,57 +395,105 @@ export default function OwnerSidebar() {
 
       <Divider sx={{ mx: 2, borderColor: 'rgba(255,255,255,0.08)' }} />
 
-      {/* ── Section label ── */}
-      <Typography sx={{
-        fontSize: 11, fontWeight: 600,
-        color: 'rgba(255,255,255,0.3)',
-        letterSpacing: 0.8, textTransform: 'uppercase',
-        px: 3, pt: 2.5, pb: 1,
-      }}>
-        Main Menu
-      </Typography>
+      {/* ── Scrollable nav area ── */}
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5, px: 1.5 }}>
 
-      {/* ── Nav list ── */}
-      <List
-        dense
-        disablePadding
-        sx={{ px: 1.5, flex: 1, overflowY: 'auto' }}
-      >
-        {NAV_ITEMS.map((item) => {
-          const active =
-            location.pathname === item.path ||
-            (item.path !== '/owner/dashboard' && location.pathname.startsWith(item.path));
+        {/* Dashboard — standalone top item */}
+        <List dense disablePadding sx={{ mb: 1 }}>
+          <StandaloneNavItem
+            item={{ label: 'Dashboard', icon: <DashboardRoundedIcon /> }}
+            active={location.pathname === '/owner/dashboard'}
+            onClick={() => navigate('/owner/dashboard')}
+          />
+        </List>
+
+        <Divider sx={{ mx: 0.5, mb: 1.5, borderColor: 'rgba(255,255,255,0.06)' }} />
+
+        {/* Grouped nav sections */}
+        {NAV_GROUPS.map((group) => {
+          const isOpen    = openGroups[group.groupLabel] ?? false;
+          const isActive  = activeGroups[group.groupLabel] ?? false;
+
           return (
-            <NavItem
-              key={item.path}
-              item={item}
-              active={active}
-              onClick={() => navigate(item.path)}
-            />
+            <Box key={group.groupLabel} sx={{ mb: 0.5 }}>
+              <NavGroupHeader
+                label={group.groupLabel}
+                isOpen={isOpen}
+                isGroupActive={isActive}
+                onToggle={() => toggleGroup(group.groupLabel)}
+              />
+              <Collapse in={isOpen} timeout={180} unmountOnExit={false}>
+                <List dense disablePadding>
+                  {group.children.map((child) => {
+                    const active =
+                      location.pathname === child.path ||
+                      location.pathname.startsWith(child.path + '/');
+                    return (
+                      <SubNavItem
+                        key={child.path}
+                        item={child}
+                        active={active}
+                        badgeCount={child.badgeCount}
+                        onClick={() => navigate(child.path)}
+                      />
+                    );
+                  })}
+                </List>
+              </Collapse>
+            </Box>
           );
         })}
-      </List>
 
-      {/* ── Settings + Switch to Admin (dual-role only) ── */}
-      <List dense disablePadding sx={{ px: 1.5 }}>
-        <Divider sx={{ mb: 1, borderColor: 'rgba(255,255,255,0.08)' }} />
-        <NavItem
-          item={{ label: 'Settings', icon: <SettingsRoundedIcon />, path: '/owner/settings' }}
-          active={location.pathname === '/owner/settings'}
-          onClick={() => navigate('/owner/settings')}
-        />
+        <Divider sx={{ mx: 0.5, my: 1.5, borderColor: 'rgba(255,255,255,0.06)' }} />
+
+        {/* System items */}
+        <Typography sx={{
+          fontSize: 10, fontWeight: 700, letterSpacing: 0.9, textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.3)', px: 2, pb: 0.75,
+        }}>
+          System
+        </Typography>
+        <List dense disablePadding>
+          {SYSTEM_ITEMS.map((item) => (
+            <SubNavItem
+              key={item.path}
+              item={item}
+              active={location.pathname === item.path}
+              onClick={() => navigate(item.path)}
+            />
+          ))}
+        </List>
+
+      </Box>
+
+      {/* ── Bottom: Switch to Admin + user footer ── */}
+      <Box sx={{ px: 1.5, pb: 0.5 }}>
         {isDualRole && (
-          <NavItem
-            item={{ label: 'Switch to Admin Portal', icon: <AdminPanelSettingsRoundedIcon /> }}
-            active={false}
-            onClick={switchToAdmin}
-          />
+          <>
+            <Divider sx={{ mb: 1, borderColor: 'rgba(255,255,255,0.08)' }} />
+            <ListItemButton
+              onClick={switchToAdmin}
+              sx={{
+                borderRadius: '10px',
+                px: 1.5, py: 0.875,
+                mb: 0.5,
+                '& .MuiListItemIcon-root': { color: BRAND.accent, minWidth: 36 },
+                '& .MuiListItemText-primary': {
+                  fontSize: 13, fontWeight: 500, color: BRAND.accent,
+                },
+                '&:hover': { bgcolor: 'rgba(245,166,35,0.08)' },
+              }}
+            >
+              <ListItemIcon><AdminPanelSettingsRoundedIcon /></ListItemIcon>
+              <ListItemText primary="Switch to Admin Portal" />
+            </ListItemButton>
+          </>
         )}
-      </List>
+      </Box>
 
       {/* ── User footer ── */}
       <Box sx={{
-        mx: 1.5, mb: 2, mt: 1, p: 1.5,
+        mx: 1.5, mb: 2, mt: 0.5, p: 1.5,
         borderRadius: '12px',
         bgcolor: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.08)',

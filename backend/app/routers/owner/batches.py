@@ -59,11 +59,14 @@ async def list_batches(
                b.class_days, b.start_time::text, b.end_time::text,
                b.strength_limit, b.fee_amount, b.is_active,
                b.created_date, b.teacher_id,
-               u.name AS teacher_name
+               u.name AS teacher_name,
+               COUNT(bs.id) FILTER (WHERE bs.is_deleted=FALSE AND bs.is_active=TRUE) AS student_count
         FROM batch b
         LEFT JOIN center_teacher ct ON ct.id = b.teacher_id AND ct.is_deleted = FALSE
         LEFT JOIN "user" u          ON u.id  = ct.user_id
+        LEFT JOIN batch_student bs  ON bs.batch_id = b.id
         WHERE b.center_id = $1 AND b.is_deleted = FALSE
+        GROUP BY b.id, u.name
         ORDER BY b.is_active DESC, b.course_name, b.batch_name
         """,
         center_id,
@@ -77,6 +80,7 @@ async def list_batches(
             strength_limit=r["strength_limit"], fee_amount=float(r["fee_amount"]),
             is_active=r["is_active"], teacher_name=r["teacher_name"],
             teacher_id=r["teacher_id"], created_date=r["created_date"],
+            student_count=int(r["student_count"] or 0),
         )
         for r in rows
     ]
@@ -143,6 +147,7 @@ async def create_batch(
         strength_limit=r["strength_limit"], fee_amount=float(r["fee_amount"]),
         is_active=r["is_active"], teacher_name=r["teacher_name"],
         teacher_id=r["teacher_id"], created_date=r["created_date"],
+        student_count=0,
     )
 
 
