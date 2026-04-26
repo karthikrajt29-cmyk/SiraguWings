@@ -45,30 +45,39 @@ import PersonRemoveRoundedIcon     from '@mui/icons-material/PersonRemoveRounded
 import ExpandMoreRoundedIcon       from '@mui/icons-material/ExpandMoreRounded';
 import ExpandLessRoundedIcon       from '@mui/icons-material/ExpandLessRounded';
 import PersonSearchRoundedIcon     from '@mui/icons-material/PersonSearchRounded';
+import EventNoteRoundedIcon        from '@mui/icons-material/EventNoteRounded';
+import CheckRoundedIcon            from '@mui/icons-material/CheckRounded';
 import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   approveCenter,
   assignOwner,
   getCenterBatches,
+  getCenterParents,
   getCenterStudents,
   getCenterUsers,
   getBatchStudents,
   addBatchStudent,
   removeBatchStudent,
+  getBatchAttendance,
+  markBatchAttendance,
   rejectCenter,
   reinstateCenter,
   reviewCenter,
   suspendCenter,
   updateCenter,
   uploadCenterLogo,
+  type AttendanceRecord,
   type Batch,
   type BatchStudent,
   type CenterDetail,
+  type CenterParent,
   type CenterUpdatePayload,
 } from '../../api/centers.api';
-import AddUserModal  from './AddUserModal';
-import AddBatchModal from './AddBatchModal';
+import { unenrollStudent } from '../../api/students.api';
+import AddUserModal      from './AddUserModal';
+import AddBatchModal     from './AddBatchModal';
+import MapStudentModal   from './MapStudentModal';
 import { getMasterData } from '../../api/masterData.api';
 import { getUsers, type UserSummary } from '../../api/users.api';
 import StatusChip        from '../common/StatusChip';
@@ -196,21 +205,30 @@ function FacilityChips({ value }: { value: string | null }) {
 }
 
 /* ─────────────────────────────────────────────────
-   BATCH CARD  (self-contained: fetches + manages its own students)
+   BATCH CARD  (self-contained: fetches + manages its own students + attendance)
 ───────────────────────────────────────────────── */
 function BatchCard({ batch, centerId }: { batch: Batch; centerId: string }) {
   const qc = useQueryClient();
   const { showSnack } = useSnackbar();
-  const [expanded, setExpanded]           = useState(false);
-  const [editOpen, setEditOpen]           = useState(false);
-  const [addOpen, setAddOpen]             = useState(false);
+
+  // ── section panel: 'students' | 'attendance' | null
+  const [panel, setPanel]               = useState<'students' | 'attendance' | null>(null);
+  const [editOpen, setEditOpen]         = useState(false);
+  const [addOpen, setAddOpen]           = useState(false);
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<BatchStudent | null>(null);
+
+  // ── Attendance state
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [attDate, setAttDate]           = useState(todayStr);
+  // local map: student_id → 'Present' | 'Absent'
+  const [attMap, setAttMap]             = useState<Record<string, 'Present' | 'Absent'>>({});
+  const [attDirty, setAttDirty]         = useState(false);
 
   const { data: students = [], isLoading: studentsLoading } = useQuery({
     queryKey: ['batch-students', batch.id],
     queryFn: () => getBatchStudents(centerId, batch.id),
-    enabled: expanded,
+    enabled: panel === 'students',
   });
 
   const { data: centerStudents = [], isFetching: searching } = useQuery({
@@ -218,6 +236,23 @@ function BatchCard({ batch, centerId }: { batch: Batch; centerId: string }) {
     queryFn: () => getCenterStudents(centerId, studentSearch),
     enabled: addOpen && studentSearch.length >= 2,
   });
+
+  const { data: attRecords = [], isFetching: attLoading } = useQuery<AttendanceRecord[]>({
+    queryKey: ['batch-attendance', batch.id, attDate],
+    queryFn: () => getBatchAttendance(centerId, batch.id, attDate),
+    enabled: panel === 'attendance',
+  });
+
+  // Sync fetched records into local attMap whenever the date or records change
+  useEffect(() => {
+    if (panel !== 'attendance') return;
+    const next: Record<string, 'Present' | 'Absent'> = {};
+    attRecords.forEach((r) => {
+      if (r.attendance_status) next[r.student_id] = r.attendance_status;
+    });
+    setAttMap(next);
+    setAttDirty(false);
+  }, [attRecords, panel]);
 
   const addMut = useMutation({
     mutationFn: () => addBatchStudent(centerId, batch.id, selectedStudent!.student_id),
@@ -237,6 +272,36 @@ function BatchCard({ batch, centerId }: { batch: Batch; centerId: string }) {
     },
     onError: (e: Error) => showSnack(e.message, 'error'),
   });
+
+  const saveAttMut = useMutation({
+    mutationFn: () =>
+      markBatchAttendance(centerId, batch.id, {
+        date: attDate,
+        records: attRecords.map((r) => ({
+          student_id: r.student_id,
+          status: attMap[r.student_id] ?? 'Absent',
+        })),
+      }),
+    onSuccess: (d) => {
+      showSnack(d.message, 'success');
+      qc.invalidateQueries({ queryKey: ['batch-attendance', batch.id, attDate] });
+      setAttDirty(false);
+    },
+    onError: (e: Error) => showSnack(e.message, 'error'),
+  });
+
+  const markAll = (status: 'Present' | 'Absent') => {
+    const next: Record<string, 'Present' | 'Absent'> = {};
+    attRecords.forEach((r) => { next[r.student_id] = status; });
+    setAttMap(next);
+    setAttDirty(true);
+  };
+
+  const togglePanel = (p: 'students' | 'attendance') =>
+    setPanel((prev) => (prev === p ? null : p));
+
+  const presentCount = attRecords.filter((r) => attMap[r.student_id] === 'Present').length;
+  const absentCount  = attRecords.length - presentCount;
 
   return (
     <Box sx={{
@@ -302,28 +367,51 @@ function BatchCard({ batch, centerId }: { batch: Batch; centerId: string }) {
           </Box>
         </Stack>
 
-        {/* ── Students toggle ── */}
-        <Box
-          onClick={() => setExpanded(v => !v)}
-          sx={{
-            mt: 1.5, display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer',
-            color: BRAND.primary, width: 'fit-content',
-          }}
-        >
-          <SchoolRoundedIcon sx={{ fontSize: 14 }} />
-          <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND.primary }}>
-            {expanded ? 'Hide students' : `Students${!studentsLoading && expanded ? ` (${students.length})` : ''}`}
-          </Typography>
-          {expanded ? <ExpandLessRoundedIcon sx={{ fontSize: 16 }} /> : <ExpandMoreRoundedIcon sx={{ fontSize: 16 }} />}
-        </Box>
+        {/* ── Toggle buttons row ── */}
+        <Stack direction="row" gap={1} mt={1.5}>
+          <Box
+            onClick={() => togglePanel('students')}
+            sx={{
+              display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer',
+              color: panel === 'students' ? BRAND.primary : BRAND.textSecondary,
+              fontWeight: panel === 'students' ? 700 : 500,
+            }}
+          >
+            <SchoolRoundedIcon sx={{ fontSize: 14 }} />
+            <Typography sx={{ fontSize: 12, fontWeight: 'inherit', color: 'inherit' }}>
+              Students
+            </Typography>
+            {panel === 'students'
+              ? <ExpandLessRoundedIcon sx={{ fontSize: 16 }} />
+              : <ExpandMoreRoundedIcon sx={{ fontSize: 16 }} />}
+          </Box>
+
+          <Box sx={{ width: 1, bgcolor: BRAND.divider, mx: 0.5 }} />
+
+          <Box
+            onClick={() => togglePanel('attendance')}
+            sx={{
+              display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer',
+              color: panel === 'attendance' ? BRAND.primary : BRAND.textSecondary,
+              fontWeight: panel === 'attendance' ? 700 : 500,
+            }}
+          >
+            <EventNoteRoundedIcon sx={{ fontSize: 14 }} />
+            <Typography sx={{ fontSize: 12, fontWeight: 'inherit', color: 'inherit' }}>
+              Attendance
+            </Typography>
+            {panel === 'attendance'
+              ? <ExpandLessRoundedIcon sx={{ fontSize: 16 }} />
+              : <ExpandMoreRoundedIcon sx={{ fontSize: 16 }} />}
+          </Box>
+        </Stack>
       </Box>
 
       {/* ── Students section ── */}
-      <Collapse in={expanded}>
+      <Collapse in={panel === 'students'}>
         <Divider sx={{ borderColor: BRAND.divider }} />
         <Box sx={{ p: 2, bgcolor: '#F8FAFC' }}>
 
-          {/* add student row */}
           {addOpen ? (
             <Box sx={{ mb: 2, p: 1.5, borderRadius: 2, border: `1px solid ${BRAND.divider}`, bgcolor: '#fff' }}>
               <Stack direction="row" alignItems="center" gap={1} mb={1}>
@@ -388,7 +476,6 @@ function BatchCard({ batch, centerId }: { batch: Batch; centerId: string }) {
             </Button>
           )}
 
-          {/* student list */}
           {studentsLoading ? (
             <Box display="flex" justifyContent="center" py={2}>
               <CircularProgress size={22} sx={{ color: BRAND.primary }} />
@@ -448,6 +535,161 @@ function BatchCard({ batch, centerId }: { batch: Batch; centerId: string }) {
         </Box>
       </Collapse>
 
+      {/* ── Attendance section ── */}
+      <Collapse in={panel === 'attendance'}>
+        <Divider sx={{ borderColor: BRAND.divider }} />
+        <Box sx={{ p: 2, bgcolor: '#F8FAFC' }}>
+
+          {/* Date picker + Mark All row */}
+          <Stack direction="row" alignItems="center" gap={1.5} mb={2} flexWrap="wrap">
+            <TextField
+              type="date"
+              size="small"
+              value={attDate}
+              onChange={(e) => {
+                setAttDate(e.target.value);
+                setAttDirty(false);
+              }}
+              inputProps={{ max: todayStr }}
+              sx={{ width: 170 }}
+            />
+            {attRecords.length > 0 && !attLoading && (
+              <>
+                <Button size="small" variant="outlined"
+                  onClick={() => markAll('Present')}
+                  sx={{ fontSize: 11, borderColor: '#16A34A', color: '#16A34A',
+                    '&:hover': { bgcolor: 'rgba(22,163,74,0.06)', borderColor: '#16A34A' }, py: 0.5 }}>
+                  All Present
+                </Button>
+                <Button size="small" variant="outlined"
+                  onClick={() => markAll('Absent')}
+                  sx={{ fontSize: 11, borderColor: '#EF4444', color: '#EF4444',
+                    '&:hover': { bgcolor: 'rgba(239,68,68,0.06)', borderColor: '#EF4444' }, py: 0.5 }}>
+                  All Absent
+                </Button>
+              </>
+            )}
+            <Box flex={1} />
+            {attRecords.length > 0 && !attLoading && (
+              <Stack direction="row" gap={1} alignItems="center">
+                <Typography sx={{ fontSize: 11, color: '#16A34A', fontWeight: 600 }}>
+                  {presentCount} P
+                </Typography>
+                <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>·</Typography>
+                <Typography sx={{ fontSize: 11, color: '#EF4444', fontWeight: 600 }}>
+                  {absentCount} A
+                </Typography>
+              </Stack>
+            )}
+          </Stack>
+
+          {/* Student attendance rows */}
+          {attLoading ? (
+            <Box display="flex" justifyContent="center" py={3}>
+              <CircularProgress size={22} sx={{ color: BRAND.primary }} />
+            </Box>
+          ) : attRecords.length === 0 ? (
+            <Box sx={{ py: 3, textAlign: 'center' }}>
+              <EventNoteRoundedIcon sx={{ fontSize: 28, color: BRAND.divider, mb: 0.5 }} />
+              <Typography sx={{ fontSize: 12, color: BRAND.textSecondary }}>
+                No students in this batch yet
+              </Typography>
+            </Box>
+          ) : (
+            <Stack gap={0.75}>
+              {attRecords.map((r) => {
+                const status = attMap[r.student_id] ?? null;
+                const isPresent = status === 'Present';
+                const isAbsent  = status === 'Absent';
+                return (
+                  <Box key={r.student_id} sx={{
+                    display: 'flex', alignItems: 'center', gap: 1.25,
+                    p: 1.25, borderRadius: 1.5, bgcolor: '#fff',
+                    border: `1px solid ${
+                      isPresent ? 'rgba(22,163,74,0.3)'
+                      : isAbsent ? 'rgba(239,68,68,0.25)'
+                      : BRAND.divider
+                    }`,
+                    transition: 'border-color .12s',
+                  }}>
+                    <Avatar sx={{ width: 30, height: 30, fontSize: 11, fontWeight: 700, flexShrink: 0,
+                      bgcolor: isPresent ? 'rgba(22,163,74,0.12)'
+                        : isAbsent ? 'rgba(239,68,68,0.1)'
+                        : BRAND.primaryBg,
+                      color: isPresent ? '#16A34A' : isAbsent ? '#EF4444' : BRAND.primary,
+                    }}>
+                      {isPresent ? <CheckRoundedIcon sx={{ fontSize: 15 }} /> : r.name.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Box flex={1} minWidth={0}>
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: BRAND.textPrimary }} noWrap>
+                        {r.name}
+                      </Typography>
+                      {r.parent_name && (
+                        <Typography sx={{ fontSize: 10.5, color: BRAND.textSecondary }}>
+                          {r.parent_name}
+                        </Typography>
+                      )}
+                    </Box>
+                    {/* Present / Absent toggle */}
+                    <Stack direction="row" gap={0.5}>
+                      <Button size="small"
+                        variant={isPresent ? 'contained' : 'outlined'}
+                        onClick={() => { setAttMap(p => ({ ...p, [r.student_id]: 'Present' })); setAttDirty(true); }}
+                        sx={{
+                          fontSize: 11, py: 0.3, px: 1.25, minWidth: 0,
+                          ...(isPresent
+                            ? { bgcolor: '#16A34A', '&:hover': { bgcolor: '#15803D' }, color: '#fff', borderColor: '#16A34A' }
+                            : { borderColor: 'rgba(22,163,74,0.4)', color: '#16A34A',
+                                '&:hover': { bgcolor: 'rgba(22,163,74,0.06)', borderColor: '#16A34A' } }),
+                        }}
+                      >
+                        P
+                      </Button>
+                      <Button size="small"
+                        variant={isAbsent ? 'contained' : 'outlined'}
+                        onClick={() => { setAttMap(p => ({ ...p, [r.student_id]: 'Absent' })); setAttDirty(true); }}
+                        sx={{
+                          fontSize: 11, py: 0.3, px: 1.25, minWidth: 0,
+                          ...(isAbsent
+                            ? { bgcolor: '#EF4444', '&:hover': { bgcolor: '#DC2626' }, color: '#fff', borderColor: '#EF4444' }
+                            : { borderColor: 'rgba(239,68,68,0.35)', color: '#EF4444',
+                                '&:hover': { bgcolor: 'rgba(239,68,68,0.06)', borderColor: '#EF4444' } }),
+                        }}
+                      >
+                        A
+                      </Button>
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+
+          {/* Save button */}
+          {attRecords.length > 0 && (
+            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                size="small"
+                disabled={!attDirty || saveAttMut.isPending}
+                onClick={() => saveAttMut.mutate()}
+                startIcon={saveAttMut.isPending
+                  ? <CircularProgress size={12} sx={{ color: '#fff' }} />
+                  : <SaveRoundedIcon sx={{ fontSize: 14 }} />}
+                sx={{
+                  background: attDirty
+                    ? `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`
+                    : undefined,
+                  fontSize: 12, px: 2,
+                }}
+              >
+                {saveAttMut.isPending ? 'Saving…' : 'Save Attendance'}
+              </Button>
+            </Box>
+          )}
+        </Box>
+      </Collapse>
+
       {/* Edit batch modal */}
       <AddBatchModal
         open={editOpen}
@@ -468,6 +710,7 @@ export default function CenterDetailPanel({ center, onActionComplete }: Props) {
   const [suspendOpen, setSuspendOpen]     = useState(false);
   const [addUserOpen, setAddUserOpen]     = useState(false);
   const [addBatchOpen, setAddBatchOpen]   = useState(false);
+  const [mapStudentOpen, setMapStudentOpen] = useState(false);
   const [form, setForm]                   = useState<CenterUpdatePayload>({});
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoProgress, setLogoProgress]   = useState(0);
@@ -573,6 +816,27 @@ export default function CenterDetailPanel({ center, onActionComplete }: Props) {
     queryKey: ['center-batches', center.id],
     queryFn: () => getCenterBatches(center.id),
     enabled: tab === 2,
+  });
+
+  const { data: enrolledStudents = [], isLoading: enrolledLoading } = useQuery({
+    queryKey: ['center-enrolled-students', center.id],
+    queryFn: () => getCenterStudents(center.id),
+    enabled: tab === 3,
+  });
+
+  const unenrollMut = useMutation({
+    mutationFn: (studentId: string) => unenrollStudent(studentId, center.id),
+    onSuccess: (d) => {
+      showSnack(d.message, 'success');
+      qc.invalidateQueries({ queryKey: ['center-enrolled-students', center.id] });
+    },
+    onError: (e: Error) => showSnack(e.message, 'error'),
+  });
+
+  const { data: centerParents = [], isLoading: parentsLoading } = useQuery({
+    queryKey: ['center-parents', center.id],
+    queryFn: () => getCenterParents(center.id),
+    enabled: tab === 4,
   });
 
   const isActionLoading =
@@ -974,6 +1238,8 @@ export default function CenterDetailPanel({ center, onActionComplete }: Props) {
           <Tab label="Details" />
           <Tab label="Users" />
           <Tab label="Batches" />
+          <Tab label="Students" />
+          <Tab label="Parents" />
         </Tabs>
       </Box>
 
@@ -1603,6 +1869,192 @@ export default function CenterDetailPanel({ center, onActionComplete }: Props) {
         </Box>
       )}
 
+      {/* ════════════════════════
+          STUDENTS TAB
+      ════════════════════════ */}
+      {tab === 3 && (
+        <Box sx={{ px: 3, pt: 2.5, pb: 3 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND.textPrimary }}>
+              {enrolledLoading
+                ? 'Students'
+                : `${enrolledStudents.length} ${enrolledStudents.length === 1 ? 'student' : 'students'} enrolled`}
+            </Typography>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<PersonAddRoundedIcon sx={{ fontSize: 15 }} />}
+              onClick={() => setMapStudentOpen(true)}
+              sx={{
+                background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+                '&:hover': { background: `linear-gradient(135deg, ${BRAND.primaryDark}, ${BRAND.primary})` },
+                fontSize: 12, py: 0.5,
+              }}
+            >
+              Map Student
+            </Button>
+          </Stack>
+
+          {enrolledLoading ? (
+            <Box display="flex" justifyContent="center" py={5}>
+              <CircularProgress size={28} sx={{ color: BRAND.primary }} />
+            </Box>
+          ) : enrolledStudents.length === 0 ? (
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <Box sx={{
+                width: 48, height: 48, borderRadius: '14px', bgcolor: BRAND.primaryBg,
+                mx: 'auto', mb: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <SchoolRoundedIcon sx={{ fontSize: 22, color: BRAND.primary }} />
+              </Box>
+              <Typography sx={{ fontSize: 14, fontWeight: 600, color: BRAND.textPrimary }}>No students mapped</Typography>
+              <Typography sx={{ fontSize: 12, color: BRAND.textSecondary, mt: 0.5 }}>
+                Use "Map Student" to search by parent mobile and link students.
+              </Typography>
+            </Box>
+          ) : (
+            <Stack gap={1.5}>
+              {enrolledStudents.map((s) => (
+                <Box key={s.student_id} sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.5,
+                  p: 1.5, borderRadius: 2, border: `1px solid ${BRAND.divider}`, bgcolor: '#FAFBFC',
+                  '&:hover': { boxShadow: '0 2px 8px rgba(15,30,53,0.08)' },
+                }}>
+                  <Avatar sx={{
+                    width: 38, height: 38, fontSize: 13, fontWeight: 700, flexShrink: 0,
+                    bgcolor: BRAND.primaryBg, color: BRAND.primary,
+                  }}>
+                    {s.name.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Box flex={1} minWidth={0}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND.textPrimary }} noWrap>
+                      {s.name}
+                    </Typography>
+                    <Stack direction="row" gap={1.5} mt={0.3} flexWrap="wrap">
+                      {s.parent_name && (
+                        <Stack direction="row" alignItems="center" gap={0.4}>
+                          <PeopleRoundedIcon sx={{ fontSize: 11, color: BRAND.textSecondary }} />
+                          <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>
+                            {s.parent_name}
+                          </Typography>
+                        </Stack>
+                      )}
+                      {s.gender && (
+                        <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>{s.gender}</Typography>
+                      )}
+                      {s.date_of_birth && (
+                        <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>
+                          DOB: {new Date(s.date_of_birth).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Box>
+                  <Tooltip title="Remove from center">
+                    <IconButton
+                      size="small"
+                      onClick={() => unenrollMut.mutate(s.student_id)}
+                      disabled={unenrollMut.isPending}
+                      sx={{ color: '#EF4444', '&:hover': { bgcolor: '#FEE2E2' }, flexShrink: 0 }}
+                    >
+                      <PersonRemoveRoundedIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </Box>
+      )}
+
+      {/* ════════════════════════
+          PARENTS TAB
+      ════════════════════════ */}
+      {tab === 4 && (
+        <Box sx={{ px: 3, pt: 2.5, pb: 3 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+            <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND.textPrimary }}>
+              {parentsLoading
+                ? 'Parents'
+                : `${centerParents.length} ${centerParents.length === 1 ? 'parent' : 'parents'} linked via students`}
+            </Typography>
+          </Stack>
+
+          {parentsLoading ? (
+            <Box display="flex" justifyContent="center" py={5}>
+              <CircularProgress size={28} sx={{ color: BRAND.primary }} />
+            </Box>
+          ) : centerParents.length === 0 ? (
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <Box sx={{
+                width: 48, height: 48, borderRadius: '14px', bgcolor: BRAND.primaryBg,
+                mx: 'auto', mb: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <PeopleRoundedIcon sx={{ fontSize: 22, color: BRAND.primary }} />
+              </Box>
+              <Typography sx={{ fontSize: 14, fontWeight: 600, color: BRAND.textPrimary }}>No parents yet</Typography>
+              <Typography sx={{ fontSize: 12, color: BRAND.textSecondary, mt: 0.5 }}>
+                Parents appear here once their children are mapped to this center.
+              </Typography>
+            </Box>
+          ) : (
+            <Stack gap={1.5}>
+              {centerParents.map((p: CenterParent) => {
+                const initials = p.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+                return (
+                  <Box key={p.id} sx={{
+                    display: 'flex', alignItems: 'center', gap: 1.5,
+                    p: 1.5, borderRadius: 2,
+                    border: `1px solid ${BRAND.divider}`, bgcolor: '#FAFBFC',
+                    '&:hover': { boxShadow: '0 2px 8px rgba(15,30,53,0.08)' },
+                  }}>
+                    <Avatar sx={{
+                      width: 38, height: 38, fontSize: 13, fontWeight: 700, flexShrink: 0,
+                      background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
+                      color: '#fff',
+                    }}>
+                      {initials}
+                    </Avatar>
+                    <Box flex={1} minWidth={0}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND.textPrimary }} noWrap>
+                        {p.name}
+                      </Typography>
+                      <Stack direction="row" gap={1.5} mt={0.3} flexWrap="wrap">
+                        {p.mobile_number && (
+                          <Stack direction="row" alignItems="center" gap={0.4}>
+                            <PhoneRoundedIcon sx={{ fontSize: 11, color: BRAND.textSecondary }} />
+                            <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>{p.mobile_number}</Typography>
+                          </Stack>
+                        )}
+                        {p.email && (
+                          <Stack direction="row" alignItems="center" gap={0.4}>
+                            <EmailRoundedIcon sx={{ fontSize: 11, color: BRAND.textSecondary }} />
+                            <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }} noWrap>{p.email}</Typography>
+                          </Stack>
+                        )}
+                      </Stack>
+                    </Box>
+                    <Stack alignItems="flex-end" gap={0.5} flexShrink={0}>
+                      <Chip
+                        label={p.status}
+                        size="small"
+                        sx={{
+                          height: 20, fontSize: 11, fontWeight: 600,
+                          bgcolor: p.status === 'Active' ? 'rgba(22,163,74,0.1)' : 'rgba(239,68,68,0.1)',
+                          color: p.status === 'Active' ? '#16A34A' : '#EF4444',
+                        }}
+                      />
+                      <Typography sx={{ fontSize: 11, color: BRAND.textSecondary }}>
+                        {p.student_count} student{p.student_count !== 1 ? 's' : ''}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+        </Box>
+      )}
+
       {/* ── Modals ── */}
       <RejectReasonModal
         open={rejectOpen}
@@ -1628,6 +2080,15 @@ export default function CenterDetailPanel({ center, onActionComplete }: Props) {
         open={addBatchOpen}
         centerId={center.id}
         onClose={() => setAddBatchOpen(false)}
+      />
+
+      <MapStudentModal
+        open={mapStudentOpen}
+        centerId={center.id}
+        onClose={() => setMapStudentOpen(false)}
+        onSuccess={() => {
+          if (tab === 3) qc.invalidateQueries({ queryKey: ['center-enrolled-students', center.id] });
+        }}
       />
 
       {cropSrc && (

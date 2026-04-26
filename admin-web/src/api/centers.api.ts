@@ -250,6 +250,53 @@ export const removeBatchStudent = (centerId: string, batchId: string, studentId:
 export const getCenterStudents = (centerId: string, search?: string) =>
   apiClient.get<BatchStudent[]>(`/admin/centers/${centerId}/students`, { params: search ? { search } : {} }).then(r => r.data);
 
+export interface CenterParent {
+  id: string;
+  name: string;
+  mobile_number: string;
+  email: string | null;
+  status: string;
+  student_count: number;
+}
+
+export const getCenterParents = (centerId: string) =>
+  apiClient.get<CenterParent[]>(`/admin/centers/${centerId}/parents`).then(r => r.data);
+
+// ── Attendance ────────────────────────────────────────────────────────────────
+
+export interface AttendanceRecord {
+  student_id: string;
+  name: string;
+  gender: string | null;
+  date_of_birth: string | null;
+  parent_name: string | null;
+  attendance_status: 'Present' | 'Absent' | null;
+  marked_at: string | null;
+  edited_at: string | null;
+}
+
+export const getBatchAttendance = (centerId: string, batchId: string, date: string) =>
+  apiClient
+    .get<AttendanceRecord[]>(`/admin/centers/${centerId}/batches/${batchId}/attendance`, { params: { date } })
+    .then(r => r.data);
+
+export const markBatchAttendance = (
+  centerId: string,
+  batchId: string,
+  body: { date: string; records: { student_id: string; status: 'Present' | 'Absent' }[] },
+) =>
+  apiClient
+    .post<{ message: string }>(`/admin/centers/${centerId}/batches/${batchId}/attendance`, body)
+    .then(r => r.data);
+
+// ── Owner-scoped center calls ─────────────────────────────────────────────────
+
+export const getOwnerCenters = () =>
+  apiClient.get<CenterSummary[]>('/owner/centers').then((r) => r.data);
+
+export const getOwnerCenter = (id: string) =>
+  apiClient.get<CenterDetail>(`/owner/centers/${id}`).then((r) => r.data);
+
 export const uploadCenterLogo = (id: string, file: File): Promise<string> => {
   const form = new FormData();
   form.append('file', file);

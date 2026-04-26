@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 
 import AdminLayout from './components/layout/AdminLayout';
+import OwnerLayout from './components/layout/OwnerLayout';
 import LoginPage from './pages/auth/LoginPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import CenterQueuePage from './pages/centers/CenterQueuePage';
@@ -22,22 +23,63 @@ import OwnerManagementPage from './pages/owners/OwnerManagementPage';
 import ParentManagementPage from './pages/parents/ParentManagementPage';
 import SubscriptionPage from './pages/subscription/SubscriptionPage';
 import SubscriptionManagePage from './pages/subscription/SubscriptionManagePage';
+import OwnerDashboardPage from './pages/owner/OwnerDashboardPage';
+import OwnerCentersPage from './pages/owner/OwnerCentersPage';
+import OwnerCenterDetailPage from './pages/owner/OwnerCenterDetailPage';
+import OwnerStudentsPage from './pages/owner/OwnerStudentsPage';
+import OwnerBatchesPage from './pages/owner/OwnerBatchesPage';
+import OwnerTeachersPage from './pages/owner/OwnerTeachersPage';
+import OwnerAttendancePage from './pages/owner/OwnerAttendancePage';
+import OwnerParentsPage from './pages/owner/OwnerParentsPage';
+import OwnerReportsPage from './pages/owner/OwnerReportsPage';
+import OwnerRolesPage from './pages/owner/OwnerRolesPage';
+import OwnerNotificationsPage from './pages/owner/OwnerNotificationsPage';
+import OwnerSettingsPage from './pages/owner/OwnerSettingsPage';
 import { CircularProgress, Box } from '@mui/material';
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { firebaseUser, isAdmin, loading } = useAuth();
+function LoadingScreen() {
+  return (
+    <Box minHeight="100vh" display="flex" alignItems="center" justifyContent="center">
+      <CircularProgress />
+    </Box>
+  );
+}
 
-  if (loading) {
-    return (
-      <Box minHeight="100vh" display="flex" alignItems="center" justifyContent="center">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, isAdmin, isOwner, activePortal, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
   if (!firebaseUser) return <Navigate to="/login" replace />;
-  if (!isAdmin) return <Navigate to="/login" replace />;
+  if (!isAdmin) {
+    // Logged in but not admin — bounce to owner portal if they have it, else login
+    if (isOwner) return <Navigate to="/owner/dashboard" replace />;
+    return <Navigate to="/login" replace />;
+  }
+  if (activePortal !== 'admin') return <Navigate to="/owner/dashboard" replace />;
   return <>{children}</>;
+}
+
+function RequireOwner({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, isAdmin, isOwner, activePortal, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!firebaseUser) return <Navigate to="/login" replace />;
+  if (!isOwner) {
+    // Logged in but not owner — bounce to admin if they have it, else login
+    if (isAdmin) return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/login" replace />;
+  }
+  if (activePortal !== 'owner') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+function CatchAll() {
+  const { firebaseUser, isAdmin, isOwner, activePortal, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!firebaseUser) return <Navigate to="/login" replace />;
+  if (isAdmin && activePortal === 'admin') return <Navigate to="/dashboard" replace />;
+  if (isOwner && activePortal === 'owner') return <Navigate to="/owner/dashboard" replace />;
+  if (isAdmin) return <Navigate to="/dashboard" replace />;
+  if (isOwner) return <Navigate to="/owner/dashboard" replace />;
+  return <Navigate to="/login" replace />;
 }
 
 export default function App() {
@@ -48,12 +90,14 @@ export default function App() {
         <SnackbarProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+
+            {/* ── Admin portal ── */}
             <Route
               path="/"
               element={
-                <PrivateRoute>
+                <RequireAdmin>
                   <AdminLayout />
-                </PrivateRoute>
+                </RequireAdmin>
               }
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
@@ -74,7 +118,32 @@ export default function App() {
               <Route path="owners" element={<OwnerManagementPage />} />
               <Route path="parents" element={<ParentManagementPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+            {/* ── Owner portal ── */}
+            <Route
+              path="/owner"
+              element={
+                <RequireOwner>
+                  <OwnerLayout />
+                </RequireOwner>
+              }
+            >
+              <Route index element={<Navigate to="/owner/dashboard" replace />} />
+              <Route path="dashboard" element={<OwnerDashboardPage />} />
+              <Route path="centers" element={<OwnerCentersPage />} />
+              <Route path="centers/:id" element={<OwnerCenterDetailPage />} />
+              <Route path="students" element={<OwnerStudentsPage />} />
+              <Route path="batches" element={<OwnerBatchesPage />} />
+              <Route path="teachers" element={<OwnerTeachersPage />} />
+              <Route path="attendance" element={<OwnerAttendancePage />} />
+              <Route path="parents" element={<OwnerParentsPage />} />
+              <Route path="reports" element={<OwnerReportsPage />} />
+              <Route path="roles" element={<OwnerRolesPage />} />
+              <Route path="notifications" element={<OwnerNotificationsPage />} />
+              <Route path="settings" element={<OwnerSettingsPage />} />
+            </Route>
+
+            <Route path="*" element={<CatchAll />} />
           </Routes>
         </SnackbarProvider>
       </AuthProvider>
