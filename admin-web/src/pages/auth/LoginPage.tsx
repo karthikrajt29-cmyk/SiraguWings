@@ -90,12 +90,19 @@ export default function LoginPage() {
 
   const handleAfterSignIn = async (idToken: string) => {
     const profile = await verifyToken(idToken);
-    if (!profile.roles.some((r) => r.role === 'Admin')) {
-      setError('Access denied — Admin account required.');
-      await auth.signOut();
+    const hasAdmin = profile.roles.some((r) => r.role === 'Admin');
+    const hasOwner = profile.roles.some((r) => r.role === 'Owner');
+
+    if (hasAdmin) {
+      navigate('/dashboard', { replace: true });
       return;
     }
-    navigate('/dashboard', { replace: true });
+    if (hasOwner) {
+      navigate('/owner/dashboard', { replace: true });
+      return;
+    }
+    setError('Access denied — your account has no portal access.');
+    await auth.signOut();
   };
 
   const handleGoogle = async () => {

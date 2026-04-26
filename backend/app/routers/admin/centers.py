@@ -79,6 +79,7 @@ def _build_center_detail(r, hours: Optional[float] = None) -> CenterDetail:
         owner_user_name=r["owner_user_name"] if "owner_user_name" in keys else None,
         owner_user_email=r["owner_user_email"] if "owner_user_email" in keys else None,
         owner_user_mobile=r["owner_user_mobile"] if "owner_user_mobile" in keys else None,
+        gstin=r["gstin"] if "gstin" in keys else None,
     )
 
 
@@ -759,6 +760,43 @@ async def get_center_students(
     ]
 
 
+
+# ---------------------------------------------------------------------------
+# PARENTS LINKED TO CENTER  (unique parents of enrolled students)
+# ---------------------------------------------------------------------------
+@router.get("/{center_id}/parents")
+async def get_center_parents(
+    center_id: uuid.UUID,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> list:
+    await get_center_or_404(db, center_id, select="id")
+    rows = await db.fetch(
+        """
+        SELECT u.id, u.name, u.mobile_number, u.email, u.status,
+               COUNT(s.id) AS student_count
+        FROM center_student cs
+        JOIN student s ON s.id = cs.student_id AND s.is_deleted = FALSE
+        JOIN "user" u ON u.id = s.parent_id AND u.is_deleted = FALSE
+        WHERE cs.center_id = $1 AND cs.is_deleted = FALSE
+        GROUP BY u.id, u.name, u.mobile_number, u.email, u.status
+        ORDER BY u.name
+        """,
+        center_id,
+    )
+    return [
+        {
+            "id": str(r["id"]),
+            "name": r["name"],
+            "mobile_number": r["mobile_number"],
+            "email": r["email"],
+            "status": r["status"],
+            "student_count": r["student_count"],
+        }
+        for r in rows
+    ]
+
+
 # ---------------------------------------------------------------------------
 # ADD USER TO CENTER
 # ---------------------------------------------------------------------------
@@ -1153,6 +1191,129 @@ async def remove_batch_student(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found in this batch.")
     student = await db.fetchrow("SELECT name FROM student WHERE id=$1", student_id)
     return SuccessResponse(message=f"{student['name'] if student else 'Student'} removed from batch.")
+
+
+
+# ---------------------------------------------------------------------------
+# ATTENDANCE  –  GET (fetch for a date) and POST (mark/update batch)
+# ---------------------------------------------------------------------------
+@router.get("/{center_id}/batches/{batch_id}/attendance")
+async def get_batch_attendance(
+    center_id: uuid.UUID,
+    batch_id: uuid.UUID,
+    date: str = Query(..., description="ISO date YYYY-MM-DD"),
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> list:
+    """Return all students in the batch with their attendance status for the given date."""
+    await get_center_or_404(db, center_id, select="id")
+    from datetime import date as date_type
+    try:
+        attendance_date = date_type.fromisoformat(date)
+    except ValueError:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "date must be YYYY-MM-DD")
+
+    rows = await db.fetch(
+        """
+        SELECT bs.student_id,
+               s.name,
+               s.gender,
+               s.date_of_birth,
+               u.name AS parent_name,
+               a.status AS attendance_status,
+               a.marked_at,
+               a.edited_at
+        FROM batch_student bs
+        JOIN student s ON s.id = bs.student_id AND s.is_deleted = FALSE
+        LEFT JOIN "user" u ON u.id = s.parent_id AND u.is_deleted = FALSE
+        LEFT JOIN attendance a
+               ON a.student_id = bs.student_id
+              AND a.batch_id   = bs.batch_id
+              AND a.attendance_date = $2
+              AND a.is_deleted = FALSE
+        WHERE bs.batch_id = $1 AND bs.is_deleted = FALSE AND bs.is_active = TRUE
+        ORDER BY s.name
+        """,
+        batch_id, attendance_date,
+    )
+    return [
+        {
+            "student_id":        str(r["student_id"]),
+            "name":              r["name"],
+            "gender":            r["gender"],
+            "date_of_birth":     r["date_of_birth"].isoformat() if r["date_of_birth"] else None,
+            "parent_name":       r["parent_name"],
+            "attendance_status": r["attendance_status"],   # None if not yet marked
+            "marked_at":         r["marked_at"].isoformat() if r["marked_at"] else None,
+            "edited_at":         r["edited_at"].isoformat() if r["edited_at"] else None,
+        }
+        for r in rows
+    ]
+
+
+@router.post("/{center_id}/batches/{batch_id}/attendance", response_model=SuccessResponse)
+async def mark_batch_attendance(
+    center_id: uuid.UUID,
+    batch_id: uuid.UUID,
+    body: dict,
+    db: asyncpg.Connection = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+) -> SuccessResponse:
+    """
+    Upsert attendance for all students in one call.
+    Body: { "date": "YYYY-MM-DD", "records": [{"student_id": "...", "status": "Present"|"Absent"}, ...] }
+    """
+    await get_center_or_404(db, center_id, select="id")
+    from datetime import date as date_type
+    try:
+        attendance_date = date_type.fromisoformat(body.get("date", ""))
+    except (ValueError, TypeError):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "date must be YYYY-MM-DD")
+
+    records = body.get("records", [])
+    if not records:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "records cannot be empty")
+
+    valid_statuses = {"Present", "Absent"}
+    for rec in records:
+        if rec.get("status") not in valid_statuses:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Invalid status: {rec.get('status')}")
+
+    async with db.transaction():
+        for rec in records:
+            student_id = uuid.UUID(rec["student_id"])
+            att_status = rec["status"]
+            existing = await db.fetchrow(
+                """
+                SELECT id, status FROM attendance
+                WHERE batch_id=$1 AND student_id=$2 AND attendance_date=$3 AND is_deleted=FALSE
+                """,
+                batch_id, student_id, attendance_date,
+            )
+            if existing:
+                if existing["status"] != att_status:
+                    await db.execute(
+                        """
+                        UPDATE attendance
+                        SET status=$1, edited_at=NOW() AT TIME ZONE 'UTC', edited_by=$2,
+                            modified_by=$2, modified_date=NOW() AT TIME ZONE 'UTC',
+                            previous_status=$3, version_number=version_number+1
+                        WHERE id=$4
+                        """,
+                        att_status, admin.user_id, existing["status"], existing["id"],
+                    )
+            else:
+                await db.execute(
+                    """
+                    INSERT INTO attendance
+                        (batch_id, student_id, marked_by, attendance_date, status,
+                         created_by, created_date)
+                    VALUES ($1,$2,$3,$4,$5,$3,NOW() AT TIME ZONE 'UTC')
+                    """,
+                    batch_id, student_id, admin.user_id, attendance_date, att_status,
+                )
+
+    return SuccessResponse(message=f"Attendance saved for {len(records)} student(s) on {attendance_date}.")
 
 
 # ---------------------------------------------------------------------------

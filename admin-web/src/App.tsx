@@ -34,6 +34,7 @@ import OwnerParentsPage from './pages/owner/OwnerParentsPage';
 import OwnerReportsPage from './pages/owner/OwnerReportsPage';
 import OwnerRolesPage from './pages/owner/OwnerRolesPage';
 import OwnerNotificationsPage from './pages/owner/OwnerNotificationsPage';
+import OwnerFeesPage from './pages/owner/OwnerFeesPage';
 import OwnerSettingsPage from './pages/owner/OwnerSettingsPage';
 import { CircularProgress, Box } from '@mui/material';
 
@@ -137,6 +138,7 @@ export default function App() {
               <Route path="teachers" element={<OwnerTeachersPage />} />
               <Route path="attendance" element={<OwnerAttendancePage />} />
               <Route path="parents" element={<OwnerParentsPage />} />
+              <Route path="fees" element={<OwnerFeesPage />} />
               <Route path="reports" element={<OwnerReportsPage />} />
               <Route path="roles" element={<OwnerRolesPage />} />
               <Route path="notifications" element={<OwnerNotificationsPage />} />

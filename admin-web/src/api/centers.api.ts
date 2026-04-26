@@ -60,6 +60,8 @@ export interface CenterDetail {
   owner_user_name: string | null;
   owner_user_email: string | null;
   owner_user_mobile: string | null;
+  // tax
+  gstin: string | null;
 }
 
 export interface CenterUser {
@@ -93,6 +95,7 @@ export interface CenterUpdatePayload {
   latitude?: number | null;
   longitude?: number | null;
   logo_url?: string | null;
+  gstin?: string | null;
 }
 
 export interface PagedResponse<T> {

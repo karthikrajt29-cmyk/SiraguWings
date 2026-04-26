@@ -26,6 +26,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/owner/batches':       'Batches',
   '/owner/teachers':      'Teachers',
   '/owner/attendance':    'Attendance',
+  '/owner/fees':          'Fees & Invoices',
   '/owner/parents':       'Parents',
   '/owner/reports':       'Reports',
   '/owner/roles':         'Roles & Access',

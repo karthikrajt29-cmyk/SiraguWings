@@ -26,6 +26,7 @@ OWNER_EDITABLE_FIELDS = {
     "age_group", "fee_range", "facilities",
     "social_link", "website_link",
     "latitude", "longitude", "logo_url",
+    "gstin",
 }
 
 
@@ -104,6 +105,7 @@ async def get_my_center(
         trial_ends_at=r["trial_ends_at"],
         suspended_at=r["suspended_at"],
         data_purge_at=r["data_purge_at"],
+        gstin=r["gstin"] if "gstin" in r.keys() else None,
     )
 
 

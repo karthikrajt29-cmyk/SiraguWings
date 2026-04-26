@@ -59,6 +59,8 @@ class CenterDetail(CenterSummary):
     owner_user_name: Optional[str] = None
     owner_user_email: Optional[str] = None
     owner_user_mobile: Optional[str] = None
+    # tax
+    gstin: Optional[str] = None
 
 
 class AssignOwnerRequest(BaseModel):
@@ -152,9 +154,10 @@ class CenterUpdateRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     logo_url: Optional[str] = None
+    gstin: Optional[str] = None
 
     @field_validator('description', 'fee_range', 'facilities', 'social_link',
-                     'website_link', 'pincode', 'admin_notes', mode='before')
+                     'website_link', 'pincode', 'admin_notes', 'gstin', mode='before')
     @classmethod
     def blank_to_none(cls, v: object) -> object:
         return _empty_str_to_none(v) if isinstance(v, str) else v

@@ -169,3 +169,374 @@ export const removeOwnerBatch = (centerId: string, batchId: string) =>
   apiClient
     .delete<{ message: string }>(`/owner/centers/${centerId}/batches/${batchId}`)
     .then((r) => r.data);
+
+// ── Parents (owner-scoped) ───────────────────────────────────────────────────
+
+export interface OwnerParent {
+  id: string;
+  name: string;
+  mobile_number: string;
+  email: string | null;
+  status: string;
+  student_count: number;
+}
+
+export const listOwnerParents = (centerId: string) =>
+  apiClient.get<OwnerParent[]>(`/owner/centers/${centerId}/parents`).then((r) => r.data);
+
+// ── Batch students (owner-scoped) ────────────────────────────────────────────
+
+export interface OwnerBatchStudent {
+  batch_student_id: string;
+  student_id: string;
+  name: string;
+  date_of_birth: string | null;
+  gender: string | null;
+  parent_name: string | null;
+  assigned_at: string | null;
+}
+
+export const listOwnerBatchStudents = (centerId: string, batchId: string) =>
+  apiClient
+    .get<OwnerBatchStudent[]>(`/owner/centers/${centerId}/batches/${batchId}/students`)
+    .then((r) => r.data);
+
+export const addOwnerBatchStudent = (centerId: string, batchId: string, studentId: string) =>
+  apiClient
+    .post<{ message: string }>(`/owner/centers/${centerId}/batches/${batchId}/students`, {
+      student_id: studentId,
+    })
+    .then((r) => r.data);
+
+export const removeOwnerBatchStudent = (centerId: string, batchId: string, studentId: string) =>
+  apiClient
+    .delete<{ message: string }>(
+      `/owner/centers/${centerId}/batches/${batchId}/students/${studentId}`,
+    )
+    .then((r) => r.data);
+
+// ── Attendance (owner-scoped) ────────────────────────────────────────────────
+
+export interface OwnerAttendanceRecord {
+  student_id: string;
+  name: string;
+  gender: string | null;
+  date_of_birth: string | null;
+  parent_name: string | null;
+  attendance_status: 'Present' | 'Absent' | null;
+  marked_at: string | null;
+  edited_at: string | null;
+}
+
+export interface OwnerAttendanceRangeRow {
+  attendance_date: string;
+  status: 'Present' | 'Absent';
+  student_id: string;
+  student_name: string;
+}
+
+export const getOwnerBatchAttendance = (centerId: string, batchId: string, date: string) =>
+  apiClient
+    .get<OwnerAttendanceRecord[]>(
+      `/owner/centers/${centerId}/batches/${batchId}/attendance`,
+      { params: { date } },
+    )
+    .then((r) => r.data);
+
+export const markOwnerBatchAttendance = (
+  centerId: string,
+  batchId: string,
+  body: { date: string; records: { student_id: string; status: 'Present' | 'Absent' }[] },
+) =>
+  apiClient
+    .post<{ message: string }>(`/owner/centers/${centerId}/batches/${batchId}/attendance`, body)
+    .then((r) => r.data);
+
+export const getOwnerBatchAttendanceRange = (
+  centerId: string,
+  batchId: string,
+  start: string,
+  end: string,
+) =>
+  apiClient
+    .get<OwnerAttendanceRangeRow[]>(
+      `/owner/centers/${centerId}/batches/${batchId}/attendance/range`,
+      { params: { start, end } },
+    )
+    .then((r) => r.data);
+
+// ── Notifications (owner-scoped) ─────────────────────────────────────────────
+
+export interface OwnerNotification {
+  id: string;
+  center_id: string | null;
+  type: 'Push' | 'SMS' | 'Email' | 'InApp';
+  category: string;
+  title: string;
+  body: string;
+  delivery_status: string;
+  read_at: string | null;
+  created_date: string | null;
+}
+
+export type OwnerBroadcastAudience = 'Parents' | 'Teachers';
+
+export interface OwnerBroadcastPayload {
+  center_id: string;
+  audience: OwnerBroadcastAudience;
+  title: string;
+  body: string;
+  category?: string;
+}
+
+export const listOwnerNotifications = (onlyUnread = false) =>
+  apiClient
+    .get<OwnerNotification[]>('/owner/notifications', { params: { only_unread: onlyUnread } })
+    .then((r) => r.data);
+
+export const getOwnerUnreadCount = () =>
+  apiClient.get<{ unread: number }>('/owner/notifications/unread-count').then((r) => r.data);
+
+export const markOwnerNotificationRead = (id: string) =>
+  apiClient
+    .post<{ message: string }>(`/owner/notifications/${id}/read`)
+    .then((r) => r.data);
+
+export const markAllOwnerNotificationsRead = () =>
+  apiClient.post<{ message: string }>('/owner/notifications/read-all').then((r) => r.data);
+
+export const broadcastOwnerNotification = (payload: OwnerBroadcastPayload) =>
+  apiClient
+    .post<{ message: string; recipient_count: number }>('/owner/notifications/broadcast', payload)
+    .then((r) => r.data);
+
+// ── Fees (owner-scoped) ──────────────────────────────────────────────────────
+
+export type FeeStatus = 'Pending' | 'Paid' | 'Overdue' | 'PartiallyPaid';
+export type PaymentMode = 'UPI' | 'Card' | 'NetBanking' | 'Cash' | 'BankTransfer';
+
+export interface OwnerFee {
+  id: string;
+  student_id: string;
+  student_name: string;
+  batch_id: string | null;
+  batch_name: string | null;
+  course_name: string | null;
+  amount: number;
+  paid_amount: number;
+  outstanding: number;
+  due_date: string;
+  status: FeeStatus;
+  notes: string | null;
+  created_date: string | null;
+  reminder_count: number;
+  reminder_sent_at: string | null;
+  has_parent: boolean;
+}
+
+export interface OwnerFeeSummary {
+  total_billed: number;
+  collected: number;
+  outstanding: number;
+  overdue_amount: number;
+  paid_count: number;
+  pending_count: number;
+  partial_count: number;
+  overdue_count: number;
+  collection_pct: number;
+}
+
+export interface OwnerFeeCreatePayload {
+  student_id: string;
+  batch_id?: string | null;
+  amount: number;
+  due_date: string;
+  notes?: string | null;
+}
+
+export interface OwnerFeeBulkPayload {
+  batch_id: string;
+  amount: number;
+  due_date: string;
+  notes?: string | null;
+}
+
+export interface OwnerFeeUpdatePayload {
+  amount?: number;
+  due_date?: string;
+  notes?: string | null;
+}
+
+export interface OwnerFeeFilters {
+  status?: FeeStatus;
+  student_id?: string;
+  batch_id?: string;
+  start?: string;
+  end?: string;
+}
+
+export interface OwnerPayment {
+  id: string;
+  mode: PaymentMode;
+  status: 'Success' | 'Failed' | 'Pending' | 'Refunded';
+  transaction_id: string | null;
+  gateway_reference: string | null;
+  amount_paid: number;
+  paid_at: string | null;
+  created_date: string | null;
+  refund_reason: string | null;
+  refunded_at: string | null;
+}
+
+export interface OwnerPaymentPayload {
+  mode: PaymentMode;
+  amount_paid: number;
+  transaction_id?: string | null;
+  gateway_reference?: string | null;
+}
+
+export interface OwnerPlatformInvoice {
+  id: string;
+  invoice_number: string;
+  student_count: number;
+  rate_per_student: number;
+  sub_total: number;
+  gst_rate: number;
+  gst_amount: number;
+  total_amount: number;
+  billing_period_start: string;
+  billing_period_end: string;
+  due_date: string;
+  status: 'Generated' | 'Paid' | 'Overdue' | 'Waived';
+  gst_invoice_url: string | null;
+  generated_at: string | null;
+}
+
+export const listOwnerFees = (centerId: string, filters: OwnerFeeFilters = {}) =>
+  apiClient
+    .get<OwnerFee[]>(`/owner/centers/${centerId}/fees`, { params: filters })
+    .then((r) => r.data);
+
+export const getOwnerFeesSummary = (centerId: string) =>
+  apiClient
+    .get<OwnerFeeSummary>(`/owner/centers/${centerId}/fees/summary`)
+    .then((r) => r.data);
+
+export const createOwnerFee = (centerId: string, payload: OwnerFeeCreatePayload) =>
+  apiClient
+    .post<{ id: string; status: FeeStatus }>(`/owner/centers/${centerId}/fees`, payload)
+    .then((r) => r.data);
+
+export const createOwnerFeesBulk = (centerId: string, payload: OwnerFeeBulkPayload) =>
+  apiClient
+    .post<{ created: number }>(`/owner/centers/${centerId}/fees/bulk-by-batch`, payload)
+    .then((r) => r.data);
+
+export const updateOwnerFee = (
+  centerId: string,
+  feeId: string,
+  payload: OwnerFeeUpdatePayload,
+) =>
+  apiClient
+    .patch<{ message: string }>(`/owner/centers/${centerId}/fees/${feeId}`, payload)
+    .then((r) => r.data);
+
+export const removeOwnerFee = (centerId: string, feeId: string) =>
+  apiClient
+    .delete<{ message: string }>(`/owner/centers/${centerId}/fees/${feeId}`)
+    .then((r) => r.data);
+
+export const recordOwnerPayment = (
+  centerId: string,
+  feeId: string,
+  payload: OwnerPaymentPayload,
+) =>
+  apiClient
+    .post<{ id: string; fee_status: FeeStatus }>(
+      `/owner/centers/${centerId}/fees/${feeId}/payments`,
+      payload,
+    )
+    .then((r) => r.data);
+
+export const listOwnerPayments = (centerId: string, feeId: string) =>
+  apiClient
+    .get<OwnerPayment[]>(`/owner/centers/${centerId}/fees/${feeId}/payments`)
+    .then((r) => r.data);
+
+export const listOwnerPlatformInvoices = (centerId: string) =>
+  apiClient
+    .get<OwnerPlatformInvoice[]>(`/owner/centers/${centerId}/platform-invoices`)
+    .then((r) => r.data);
+
+// ── Fee invoice (rich, GST-aware) / refunds / reminders ──────────────────────
+
+export interface OwnerFeeInvoice {
+  invoice_number: string;
+  fee: {
+    id: string;
+    amount: number;
+    paid_amount: number;
+    outstanding: number;
+    due_date: string;
+    status: FeeStatus;
+    notes: string | null;
+    created_date: string | null;
+  };
+  student: {
+    id: string;
+    name: string;
+    parent_name: string | null;
+    parent_mobile: string | null;
+    parent_email: string | null;
+  };
+  batch: { course_name: string; batch_name: string } | null;
+  center: {
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    pincode: string | null;
+    mobile_number: string;
+    gstin: string | null;
+  };
+  tax: {
+    has_gst: boolean;
+    gst_rate: number;
+    half_rate: number;
+    base_amount: number;
+    gst_amount: number;
+    cgst_amount: number;
+    sgst_amount: number;
+    total_amount: number;
+  };
+}
+
+export const getOwnerFeeInvoice = (centerId: string, feeId: string) =>
+  apiClient
+    .get<OwnerFeeInvoice>(`/owner/centers/${centerId}/fees/${feeId}/invoice`)
+    .then((r) => r.data);
+
+export const refundOwnerPayment = (
+  centerId: string,
+  feeId: string,
+  paymentId: string,
+  reason?: string,
+) =>
+  apiClient
+    .post<{ message: string; fee_status: FeeStatus; refunded_amount: number }>(
+      `/owner/centers/${centerId}/fees/${feeId}/payments/${paymentId}/refund`,
+      { reason: reason ?? null },
+    )
+    .then((r) => r.data);
+
+export const sendOwnerFeeReminder = (
+  centerId: string,
+  feeId: string,
+  message?: string,
+) =>
+  apiClient
+    .post<{ message: string; outstanding: number }>(
+      `/owner/centers/${centerId}/fees/${feeId}/reminder`,
+      { message: message ?? null },
+    )
+    .then((r) => r.data);

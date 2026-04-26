@@ -19,6 +19,7 @@ import FamilyRestroomRoundedIcon     from '@mui/icons-material/FamilyRestroomRou
 import AssessmentRoundedIcon         from '@mui/icons-material/AssessmentRounded';
 import ManageAccountsRoundedIcon     from '@mui/icons-material/ManageAccountsRounded';
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
+import CurrencyRupeeRoundedIcon      from '@mui/icons-material/CurrencyRupeeRounded';
 import SettingsRoundedIcon           from '@mui/icons-material/SettingsRounded';
 import AdminPanelSettingsRoundedIcon from '@mui/icons-material/AdminPanelSettingsRounded';
 import LogoutRoundedIcon             from '@mui/icons-material/LogoutRounded';
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { label: 'Batches',         icon: <GroupsRoundedIcon />,              path: '/owner/batches' },
   { label: 'Teachers',        icon: <SupervisorAccountRoundedIcon />,   path: '/owner/teachers' },
   { label: 'Attendance',      icon: <EventAvailableRoundedIcon />,      path: '/owner/attendance' },
+  { label: 'Fees',            icon: <CurrencyRupeeRoundedIcon />,       path: '/owner/fees' },
   { label: 'Parents',         icon: <FamilyRestroomRoundedIcon />,      path: '/owner/parents' },
   { label: 'Reports',         icon: <AssessmentRoundedIcon />,          path: '/owner/reports' },
   { label: 'Roles & Access',  icon: <ManageAccountsRoundedIcon />,      path: '/owner/roles' },
