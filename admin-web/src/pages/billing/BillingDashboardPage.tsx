@@ -24,7 +24,6 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -274,7 +273,7 @@ function GenerateConfirmDialog({
       <DialogTitle>Generate Bills — {currentMonthLabel()}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary">
-          This will create billing records for <strong>all active centers</strong> that do not
+          This will create billing records for <strong>all active owners</strong> that do not
           already have a bill for {currentMonthLabel()}.
         </Typography>
         <Alert severity="info" sx={{ mt: 1.5, fontSize: 12 }}>
@@ -470,7 +469,7 @@ export default function BillingDashboardPage() {
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: BRAND.primaryBg }}>
-                  {['Center', 'Month', 'Plan', 'Students', 'Extra', 'Storage', 'Total', 'Status', ''].map((h) => (
+                  {['Owner', 'Month', 'Plan', 'Students', 'Extra', 'Storage', 'Total', 'Status', ''].map((h) => (
                     <TableCell key={h} sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary', py: 1.25 }}>{h}</TableCell>
                   ))}
                 </TableRow>

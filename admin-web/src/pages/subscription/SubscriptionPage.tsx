@@ -16,6 +16,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import UpgradeRoundedIcon from '@mui/icons-material/UpgradeRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import WarningRoundedIcon from '@mui/icons-material/WarningRounded';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -141,12 +142,12 @@ function PlanCard({
   );
 }
 
-// ── Center Detail Drawer ──────────────────────────────────────────────────────
+// ── Owner Subscription Drawer ─────────────────────────────────────────────────
 
-function CenterSubscriptionDrawer({
-  center, onClose,
+function OwnerSubscriptionDrawer({
+  owner, onClose,
 }: {
-  center: OwnerSubscriptionSummary | null;
+  owner: OwnerSubscriptionSummary | null;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
@@ -160,9 +161,9 @@ function CenterSubscriptionDrawer({
   const [selectedAddonId, setSelectedAddonId] = useState('');
 
   const { data: detail, isLoading } = useQuery({
-    queryKey: ['subscription-center', center?.owner_id],
-    queryFn: () => getOwnerSubscriptionDetail(center!.owner_id),
-    enabled: !!center,
+    queryKey: ['subscription-owner', owner?.owner_id],
+    queryFn: () => getOwnerSubscriptionDetail(owner!.owner_id),
+    enabled: !!owner,
     staleTime: 30_000,
   });
 
@@ -179,13 +180,13 @@ function CenterSubscriptionDrawer({
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['subscription-center', center!.owner_id] });
-    qc.invalidateQueries({ queryKey: ['subscription-centers'] });
+    qc.invalidateQueries({ queryKey: ['subscription-owner', owner!.owner_id] });
+    qc.invalidateQueries({ queryKey: ['subscription-owners'] });
     qc.invalidateQueries({ queryKey: ['subscription-dashboard'] });
   };
 
   const assignMutation = useMutation({
-    mutationFn: () => assignPlan(center!.owner_id, {
+    mutationFn: () => assignPlan(owner!.owner_id, {
       plan_id: selectedPlanId,
       effective_date: effectiveDate || undefined,
       notes: assignNotes || undefined,
@@ -201,13 +202,13 @@ function CenterSubscriptionDrawer({
   });
 
   const storageMutation = useMutation({
-    mutationFn: () => purchaseStorage(center!.owner_id, { add_on_id: selectedAddonId }),
+    mutationFn: () => purchaseStorage(owner!.owner_id, { add_on_id: selectedAddonId }),
     onSuccess: () => { invalidate(); setStorageDialog(false); showSnack('Storage add-on purchased.', 'success'); },
     onError: () => showSnack('Failed to purchase storage.', 'error'),
   });
 
   const billMutation = useMutation({
-    mutationFn: () => generateBill(center!.owner_id),
+    mutationFn: () => generateBill(owner!.owner_id),
     onSuccess: (d) => { invalidate(); showSnack(`Bill generated: ${fmt(d.data?.total_amount ?? 0)}`, 'success'); },
     onError: () => showSnack('Bill for this month may already exist.', 'warning'),
   });
@@ -222,11 +223,11 @@ function CenterSubscriptionDrawer({
   return (
     <Drawer
       anchor="right"
-      open={!!center}
+      open={!!owner}
       onClose={onClose}
-      PaperProps={{ sx: { width: { xs: '100%', sm: 560 }, p: 0 } }}
+      PaperProps={{ sx: { width: { xs: '100%', sm: 580 }, p: 0 } }}
     >
-      {!center ? null : (
+      {!owner ? null : (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           {/* Header */}
           <Box sx={{
@@ -239,27 +240,35 @@ function CenterSubscriptionDrawer({
               background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.accent})`,
               fontWeight: 700, fontSize: 16,
             }}>
-              {center.owner_name.charAt(0).toUpperCase()}
+              {owner.owner_name.charAt(0).toUpperCase()}
             </Avatar>
             <Box flex={1} minWidth={0}>
               <Typography fontWeight={700} fontSize={15} color="#fff" noWrap>
-                {center.owner_name}
+                {owner.owner_name}
               </Typography>
-              <Chip
-                size="small"
-                label={center.plan_name}
-                sx={{
-                  fontSize: 11, height: 20, mt: 0.3, fontWeight: 700,
-                  bgcolor: (PLAN_COLORS[center.plan_name]?.text ?? BRAND.primary) + '33',
-                  color: PLAN_COLORS[center.plan_name]?.text ?? BRAND.primary,
-                }}
-              />
+              <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mt: 0.3 }}>
+                <Chip
+                  size="small"
+                  label={owner.plan_name}
+                  sx={{
+                    fontSize: 11, height: 20, fontWeight: 700,
+                    bgcolor: (PLAN_COLORS[owner.plan_name]?.text ?? BRAND.primary) + '33',
+                    color: PLAN_COLORS[owner.plan_name]?.text ?? BRAND.primary,
+                  }}
+                />
+                <Typography fontSize={11} color="rgba(255,255,255,0.6)">
+                  {owner.center_count} {owner.center_count === 1 ? 'center' : 'centers'}
+                </Typography>
+              </Stack>
+              {(owner.owner_email || owner.owner_mobile) && (
+                <Typography fontSize={11} color="rgba(255,255,255,0.5)" noWrap sx={{ mt: 0.2 }}>
+                  {owner.owner_email ?? owner.owner_mobile}
+                </Typography>
+              )}
             </Box>
-            <Stack direction="row" spacing={0.5}>
-              <IconButton onClick={onClose} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                <CloseRoundedIcon />
-              </IconButton>
-            </Stack>
+            <IconButton onClick={onClose} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              <CloseRoundedIcon />
+            </IconButton>
           </Box>
 
           {/* Tabs */}
@@ -281,7 +290,9 @@ function CenterSubscriptionDrawer({
                   {/* Usage */}
                   <Card variant="outlined" sx={{ borderRadius: 2 }}>
                     <CardContent>
-                      <Typography fontWeight={700} fontSize={13} sx={{ mb: 2 }}>Usage</Typography>
+                      <Typography fontWeight={700} fontSize={13} sx={{ mb: 2 }}>
+                        Usage (across all centers)
+                      </Typography>
                       <Stack spacing={1.5}>
                         <UsageBar
                           label="Students"
@@ -297,6 +308,36 @@ function CenterSubscriptionDrawer({
                       </Stack>
                     </CardContent>
                   </Card>
+
+                  {/* Per-center breakdown */}
+                  {detail.centers.length > 0 && (
+                    <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                          <BusinessRoundedIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
+                          <Typography fontWeight={700} fontSize={13}>Center Breakdown</Typography>
+                        </Box>
+                        <TableContainer>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow sx={{ '& th': { fontWeight: 600, fontSize: 11, color: 'text.secondary', py: 0.75, px: 1 } }}>
+                                <TableCell>Center</TableCell>
+                                <TableCell align="right">Students</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {detail.centers.map((ctr) => (
+                                <TableRow key={ctr.center_id} sx={{ '& td': { py: 0.75, px: 1, fontSize: 13 } }}>
+                                  <TableCell>{ctr.center_name}</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 600 }}>{ctr.student_count}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Billing estimate */}
                   <Card variant="outlined" sx={{ borderRadius: 2 }}>
@@ -649,7 +690,7 @@ export default function SubscriptionPage() {
   });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['subscription-centers', { search, planFilter }],
+    queryKey: ['subscription-owners', { search, planFilter }],
     queryFn: () => getOwnerSubscriptions({
       search: search || undefined,
       plan_name: planFilter !== 'All' ? planFilter : undefined,
@@ -658,7 +699,7 @@ export default function SubscriptionPage() {
     staleTime: 30_000,
   });
 
-  const centers = data?.items ?? [];
+  const owners = data?.items ?? [];
 
   return (
     <Box sx={{ p: 3 }}>
@@ -667,7 +708,7 @@ export default function SubscriptionPage() {
         <Box>
           <Typography variant="h5" fontWeight={700} gutterBottom>Subscription</Typography>
           <Typography color="text.secondary" fontSize={14}>
-            Manage center subscription plans, usage limits, and billing.
+            Manage owner subscription plans, usage limits, and billing across all centers.
           </Typography>
         </Box>
         <Button
@@ -683,12 +724,13 @@ export default function SubscriptionPage() {
       {/* Dashboard stats */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {[
-          { label: 'TOTAL CENTERS', value: dashboard?.total_centers, color: BRAND.primary },
+          { label: 'TOTAL OWNERS', value: dashboard?.total_owners, color: BRAND.primary },
+          { label: 'TOTAL CENTERS', value: dashboard?.total_centers, color: '#6366f1' },
           { label: 'PAID PLANS', value: dashboard?.paid_plan_count, color: '#22c55e' },
           { label: 'FREE PLAN', value: dashboard?.free_plan_count, color: '#94a3b8' },
           { label: 'MRR', value: dashboard ? fmt(dashboard.mrr) : '—', color: '#3b82f6', raw: true },
         ].map((s) => (
-          <Grid item xs={12} sm={6} md={3} key={s.label}>
+          <Grid item xs={12} sm={6} md={2.4} key={s.label}>
             <Card sx={{ borderRadius: 3 }}>
               <CardContent sx={{ py: 2 }}>
                 <Typography color="text.secondary" fontSize={12} fontWeight={600}>{s.label}</Typography>
@@ -727,7 +769,7 @@ export default function SubscriptionPage() {
       <Stack direction="row" spacing={1.5} sx={{ mb: 2 }} flexWrap="wrap">
         <TextField
           size="small"
-          placeholder="Search center..."
+          placeholder="Search owner..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           InputProps={{
@@ -759,8 +801,9 @@ export default function SubscriptionPage() {
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: 'rgba(0,0,0,0.02)' }}>
-                <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>CENTER</TableCell>
+                <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>OWNER</TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>PLAN</TableCell>
+                <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>CENTERS</TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>STUDENTS</TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>STORAGE</TableCell>
                 <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>EST. BILL</TableCell>
@@ -770,38 +813,43 @@ export default function SubscriptionPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
-              ) : centers.length === 0 ? (
+              ) : owners.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     No subscriptions found.
                   </TableCell>
                 </TableRow>
               ) : (
-                centers.map((c) => {
-                  const planC = PLAN_COLORS[c.plan_name] ?? PLAN_COLORS.Basic;
-                  const studentOver = c.current_student_count > c.student_limit;
-                  const storageOver = c.storage_used_mb > c.total_storage_mb;
+                owners.map((o) => {
+                  const planC = PLAN_COLORS[o.plan_name] ?? PLAN_COLORS.Basic;
+                  const studentOver = o.current_student_count > o.student_limit;
+                  const storageOver = o.storage_used_mb > o.total_storage_mb;
                   return (
-                    <TableRow key={c.owner_id} hover sx={{ cursor: 'pointer' }} onClick={() => setSelected(c)}>
+                    <TableRow key={o.owner_id} hover sx={{ cursor: 'pointer' }} onClick={() => setSelected(o)}>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Avatar sx={{
                             width: 30, height: 30, fontSize: 12, fontWeight: 700,
                             bgcolor: planC.bg, color: planC.text,
                           }}>
-                            {c.owner_name.charAt(0).toUpperCase()}
+                            {o.owner_name.charAt(0).toUpperCase()}
                           </Avatar>
-                          <Typography fontSize={13} fontWeight={600}>{c.owner_name}</Typography>
+                          <Box minWidth={0}>
+                            <Typography fontSize={13} fontWeight={600} noWrap>{o.owner_name}</Typography>
+                            {o.owner_email && (
+                              <Typography fontSize={11} color="text.secondary" noWrap>{o.owner_email}</Typography>
+                            )}
+                          </Box>
                         </Box>
                       </TableCell>
                       <TableCell>
                         <Chip
                           size="small"
-                          label={c.plan_name}
+                          label={o.plan_name}
                           sx={{
                             fontSize: 11, height: 22, fontWeight: 700,
                             bgcolor: planC.bg, color: planC.text, border: `1px solid ${planC.border}`,
@@ -809,10 +857,13 @@ export default function SubscriptionPage() {
                         />
                       </TableCell>
                       <TableCell>
+                        <Typography fontSize={12}>{o.center_count}</Typography>
+                      </TableCell>
+                      <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           {studentOver && <WarningRoundedIcon sx={{ fontSize: 14, color: '#f59e0b' }} />}
                           <Typography fontSize={12} color={studentOver ? '#f59e0b' : 'inherit'}>
-                            {c.current_student_count} / {c.student_limit}
+                            {o.current_student_count} / {o.student_limit}
                           </Typography>
                         </Box>
                       </TableCell>
@@ -820,25 +871,25 @@ export default function SubscriptionPage() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           {storageOver && <WarningRoundedIcon sx={{ fontSize: 14, color: '#ef4444' }} />}
                           <Typography fontSize={12} color={storageOver ? '#ef4444' : 'inherit'}>
-                            {fmtMB(Math.round(c.storage_used_mb))} / {fmtMB(c.total_storage_mb)}
+                            {fmtMB(Math.round(o.storage_used_mb))} / {fmtMB(o.total_storage_mb)}
                           </Typography>
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography fontSize={13} fontWeight={700} color={c.estimated_total > 0 ? BRAND.primary : 'text.secondary'}>
-                          {fmt(c.estimated_total)}
+                        <Typography fontSize={13} fontWeight={700} color={o.estimated_total > 0 ? BRAND.primary : 'text.secondary'}>
+                          {fmt(o.estimated_total)}
                         </Typography>
-                        {c.extra_students > 0 && (
+                        {o.extra_students > 0 && (
                           <Typography fontSize={11} color="#f59e0b">
-                            +{c.extra_students} extra
+                            +{o.extra_students} extra
                           </Typography>
                         )}
                       </TableCell>
                       <TableCell>
                         <Chip
                           size="small"
-                          label={c.status}
-                          color={c.status === 'Active' ? 'success' : 'default'}
+                          label={o.status}
+                          color={o.status === 'Active' ? 'success' : 'default'}
                           sx={{ fontSize: 11, height: 22 }}
                         />
                       </TableCell>
@@ -851,7 +902,7 @@ export default function SubscriptionPage() {
         </TableContainer>
       )}
 
-      <CenterSubscriptionDrawer center={selected} onClose={() => setSelected(null)} />
+      <OwnerSubscriptionDrawer owner={selected} onClose={() => setSelected(null)} />
     </Box>
   );
 }
