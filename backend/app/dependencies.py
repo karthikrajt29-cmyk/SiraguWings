@@ -30,6 +30,12 @@ class CurrentUser:
             )
         return any(r["role"] == "Owner" for r in self.roles)
 
+    def is_parent(self) -> bool:
+        return any(r["role"] == "Parent" for r in self.roles)
+
+    def is_teacher(self) -> bool:
+        return any(r["role"] == "Teacher" for r in self.roles)
+
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -122,6 +128,48 @@ async def require_owner(
             detail="Owner access required.",
         )
     return current_user
+
+
+async def require_parent(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """Caller must have Parent role on at least one center."""
+    if not current_user.is_parent():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Parent access required.",
+        )
+    return current_user
+
+
+async def require_teacher(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """Caller must have Teacher role on at least one center."""
+    if not current_user.is_teacher():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Teacher access required.",
+        )
+    return current_user
+
+
+def get_parent_center_ids(user: CurrentUser) -> List[uuid.UUID]:
+    """Return UUIDs of centers where user has Parent role."""
+    return [
+        uuid.UUID(str(r["center_id"]))
+        for r in user.roles
+        if r["role"] == "Parent" and r.get("center_id") is not None
+    ]
+
+
+def get_teacher_center_ids(user: CurrentUser) -> List[uuid.UUID]:
+    """Return UUIDs of centers where user has Teacher role."""
+    return [
+        uuid.UUID(str(r["center_id"]))
+        for r in user.roles
+        if r["role"] == "Teacher" and r.get("center_id") is not None
+    ]
 
 
 def get_owned_center_ids(user: CurrentUser) -> List[uuid.UUID]:

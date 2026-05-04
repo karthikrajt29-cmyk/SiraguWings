@@ -56,8 +56,8 @@ export default function BatchStudentsModal({ open, onClose, centerId, batchId, b
   });
 
   const allStudentsQuery = useQuery({
-    queryKey: ['owner', 'students', centerId],
-    queryFn: () => listOwnerStudents(centerId),
+    queryKey: ['owner', 'students', centerId, 'all'],
+    queryFn: () => listOwnerStudents(centerId, { size: 500 }),
     enabled: open && !!centerId,
   });
 
@@ -67,7 +67,7 @@ export default function BatchStudentsModal({ open, onClose, centerId, batchId, b
   );
 
   const eligible = useMemo(() => {
-    const all = allStudentsQuery.data ?? [];
+    const all = allStudentsQuery.data?.items ?? [];
     const filtered = all.filter((s) => !rosterIds.has(s.id));
     if (!search.trim()) return filtered;
     const q = search.toLowerCase();

@@ -1,3 +1,4 @@
+import asyncio
 import asyncpg
 import ssl
 from typing import AsyncGenerator, Optional, Tuple, Union
@@ -37,14 +38,29 @@ async def get_pool() -> asyncpg.Pool:
         ssl_ctx: Optional[Union[ssl.SSLContext, bool]] = None
         if needs_ssl:
             ssl_ctx = ssl.create_default_context()
-        _pool = await asyncpg.create_pool(
-            dsn,
-            min_size=2,
-            max_size=10,
-            ssl=ssl_ctx,
-            init=_init_conn,
-            setup=_init_conn,
-        )
+        # Neon pauses idle databases; retry up to 3 times with backoff to
+        # give the DB time to wake up on cold start.
+        last_err: Exception = RuntimeError("unreachable")
+        for attempt in range(3):
+            try:
+                _pool = await asyncpg.create_pool(
+                    dsn,
+                    min_size=1,
+                    max_size=10,
+                    ssl=ssl_ctx,
+                    init=_init_conn,
+                    setup=_init_conn,
+                    timeout=30,
+                )
+                break
+            except (asyncio.TimeoutError, OSError, asyncpg.PostgresConnectionError) as e:
+                last_err = e
+                if attempt < 2:
+                    wait = 3 * (attempt + 1)
+                    print(f"DB connect attempt {attempt + 1} failed, retrying in {wait}s…")
+                    await asyncio.sleep(wait)
+        else:
+            raise last_err
     return _pool
 
 

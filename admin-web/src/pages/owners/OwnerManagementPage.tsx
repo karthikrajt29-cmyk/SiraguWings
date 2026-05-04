@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Box, Typography, Card, CardContent, Grid, Chip, Avatar,
-  Table, TableBody, TableCell, TableHead, TableRow, TableContainer,
+  Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TableContainer,
   Paper, TextField, InputAdornment, IconButton, Drawer,
   List, ListItem, ListItemText, Divider,
   CircularProgress, Alert, Badge, Button, Stack, Tooltip,
@@ -19,7 +19,7 @@ import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
 import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getUsers, getUserDetail, updateUser, removeUserRole, type UserSummary } from '../../api/users.api';
 import { getAllCenters, getCenterDetail } from '../../api/centers.api';
@@ -363,11 +363,14 @@ function OwnerDrawer({
 export default function OwnerManagementPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<UserSummary | null>(null);
+  const [page, setPage]         = useState(0);
+  const PAGE_SIZE = 25;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['users', { role: 'Owner', search }],
-    queryFn: () => getUsers({ role: 'Owner', search: search || undefined, size: 100 }),
+    queryKey: ['users', { role: 'Owner', search, page }],
+    queryFn: () => getUsers({ role: 'Owner', search: search || undefined, page: page + 1, size: PAGE_SIZE }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
   const owners = data?.items ?? [];
@@ -439,7 +442,7 @@ export default function OwnerManagementPage() {
           size="small"
           placeholder="Search by name, email or mobile..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -541,6 +544,16 @@ export default function OwnerManagementPage() {
               )}
             </TableBody>
           </Table>
+          {!isLoading && (data?.total ?? 0) > PAGE_SIZE && (
+            <TablePagination
+              component="div"
+              count={data?.total ?? 0}
+              page={page}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              rowsPerPage={PAGE_SIZE}
+              rowsPerPageOptions={[PAGE_SIZE]}
+            />
+          )}
         </TableContainer>
       )}
 

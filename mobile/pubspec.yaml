@@ -1,0 +1,53 @@
+name: siraguwings_mobile
+description: SiraguWings — Parent Super App for coaching center management.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  get: ^4.7.2
+
+  # HTTP client
+  dio: ^5.7.0
+
+  # Firebase
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.2
+  firebase_messaging: ^15.2.5
+
+  # Storage
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.5.3
+  sqflite: ^2.4.1
+  path: ^1.9.1
+
+  # Location (one-shot SOS only)
+  geolocator: ^13.0.2
+  permission_handler: ^11.3.1
+
+  # Push notifications
+  flutter_local_notifications: ^18.0.0
+
+  # UI helpers
+  cached_network_image: ^3.4.1
+  pinput: ^5.0.1
+  intl: ^0.20.2
+  connectivity_plus: ^6.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

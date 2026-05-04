@@ -53,8 +53,13 @@ export interface OwnerStudentUpdatePayload {
   date_of_join?: string | null;
 }
 
-export const listOwnerStudents = (centerId: string) =>
-  apiClient.get<OwnerStudent[]>(`/owner/centers/${centerId}/students`).then((r) => r.data);
+export const listOwnerStudents = (
+  centerId: string,
+  params: { q?: string; gender?: string; page?: number; size?: number } = {},
+) =>
+  apiClient
+    .get<import('./centers.api').PagedResponse<OwnerStudent>>(`/owner/centers/${centerId}/students`, { params: { page: 1, size: 25, ...params } })
+    .then((r) => r.data);
 
 export const createOwnerStudent = (centerId: string, payload: OwnerStudentCreatePayload) =>
   apiClient
@@ -489,9 +494,9 @@ export interface OwnerPlatformInvoice {
   generated_at: string | null;
 }
 
-export const listOwnerFees = (centerId: string, filters: OwnerFeeFilters = {}) =>
+export const listOwnerFees = (centerId: string, filters: OwnerFeeFilters = {}, page = 1, size = 25) =>
   apiClient
-    .get<OwnerFee[]>(`/owner/centers/${centerId}/fees`, { params: filters })
+    .get<import('./centers.api').PagedResponse<OwnerFee>>(`/owner/centers/${centerId}/fees`, { params: { ...filters, page, size } })
     .then((r) => r.data);
 
 export const getOwnerFeesSummary = (centerId: string) =>

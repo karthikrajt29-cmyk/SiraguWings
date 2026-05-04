@@ -9,9 +9,11 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.core.exceptions import global_exception_handler
 from app.database import close_pool, get_pool
-from app.routers import auth
+from app.routers import auth, devices, sos
 from app.routers.admin import router as admin_router
 from app.routers.owner import router as owner_router
+from app.routers.parent import router as parent_router
+from app.routers.teacher import router as teacher_router
 
 UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -73,9 +75,13 @@ app.add_exception_handler(Exception, global_exception_handler)
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # Routers
-app.include_router(auth.router,   prefix="/auth",  tags=["Authentication"])
-app.include_router(admin_router,  prefix="/admin", tags=["Admin"])
-app.include_router(owner_router,  prefix="/owner", tags=["Owner"])
+app.include_router(auth.router,    prefix="/auth",    tags=["Authentication"])
+app.include_router(admin_router,   prefix="/admin",   tags=["Admin"])
+app.include_router(owner_router,   prefix="/owner",   tags=["Owner"])
+app.include_router(parent_router,  prefix="/parent",  tags=["Parent"])
+app.include_router(teacher_router, prefix="/teacher", tags=["Teacher"])
+app.include_router(sos.router,                        tags=["SOS"])
+app.include_router(devices.router,                    tags=["Devices"])
 
 
 @app.get("/health", tags=["Health"])

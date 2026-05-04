@@ -246,7 +246,7 @@ export default function OwnerDashboardPage() {
 
   /* ── Derived totals ── */
   const totals = useMemo(() => {
-    const students = studentQueries.reduce((s, q) => s + (q.data?.length ?? 0), 0);
+    const students = studentQueries.reduce((s, q) => s + (q.data?.total ?? 0), 0);
     const batches  = batchQueries.reduce((s, q) => s + (q.data?.length ?? 0), 0);
     const activeBatches = batchQueries.reduce(
       (s, q) => s + (q.data?.filter((b) => b.is_active).length ?? 0),
@@ -282,7 +282,7 @@ export default function OwnerDashboardPage() {
     () =>
       centers.map((c, idx) => ({
         ...c,
-        students: studentQueries[idx]?.data?.length ?? 0,
+        students: studentQueries[idx]?.data?.total ?? 0,
         batches: batchQueries[idx]?.data?.length ?? 0,
         teachers: teacherQueries[idx]?.data?.filter((t) => t.is_active).length ?? 0,
       })),

@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from functools import partial
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import asyncpg
 
@@ -10,6 +10,30 @@ try:
     _FCM_AVAILABLE = True
 except ImportError:
     _FCM_AVAILABLE = False
+
+
+async def _resolve_device_tokens(
+    db: asyncpg.Connection,
+    user_id: uuid.UUID,
+    fallback_token: Optional[str] = None,
+) -> List[str]:
+    """Return all active FCM tokens for a user.
+
+    Reads from device_token (multi-device, set by mobile app /me/devices).
+    Falls back to user.device_token (legacy single-device column) if no
+    device_token rows exist — keeps older notification paths working.
+    """
+    rows = await db.fetch(
+        """
+        SELECT token FROM device_token
+        WHERE user_id = $1 AND is_deleted = FALSE
+        """,
+        user_id,
+    )
+    tokens = [r["token"] for r in rows if r["token"]]
+    if not tokens and fallback_token:
+        tokens.append(fallback_token)
+    return tokens
 
 
 async def send_push_notification(
@@ -25,7 +49,7 @@ async def send_push_notification(
     device_token: Optional[str] = None,
     created_by: Optional[uuid.UUID] = None,
 ) -> uuid.UUID:
-    """Log notification to notification_log and send FCM push if device_token available."""
+    """Log notification to notification_log and fan out FCM push to all devices."""
     notif_id = uuid.uuid4()
     effective_created_by = created_by or user_id
 
@@ -41,26 +65,35 @@ async def send_push_notification(
         title, body, reference_type, reference_id, effective_created_by,
     )
 
-    if device_token and notification_type in ("Push", "InApp") and _FCM_AVAILABLE:
-        try:
-            await _send_fcm(device_token, title, body, reference_type, reference_id)
-            await db.execute(
-                """
-                UPDATE notification_log
-                SET delivery_status = 'Sent', sent_at = NOW() AT TIME ZONE 'UTC'
-                WHERE id = $1
-                """,
-                notif_id,
-            )
-        except Exception as exc:
-            await db.execute(
-                """
-                UPDATE notification_log
-                SET delivery_status = 'Failed', failure_reason = $1
-                WHERE id = $2
-                """,
-                str(exc)[:500], notif_id,
-            )
+    if notification_type in ("Push", "InApp") and _FCM_AVAILABLE:
+        tokens = await _resolve_device_tokens(db, user_id, fallback_token=device_token)
+        if tokens:
+            sent = 0
+            last_error: Optional[str] = None
+            for token in tokens:
+                try:
+                    await _send_fcm(token, title, body, reference_type, reference_id)
+                    sent += 1
+                except Exception as exc:
+                    last_error = str(exc)[:500]
+            if sent > 0:
+                await db.execute(
+                    """
+                    UPDATE notification_log
+                    SET delivery_status = 'Sent', sent_at = NOW() AT TIME ZONE 'UTC'
+                    WHERE id = $1
+                    """,
+                    notif_id,
+                )
+            else:
+                await db.execute(
+                    """
+                    UPDATE notification_log
+                    SET delivery_status = 'Failed', failure_reason = $1
+                    WHERE id = $2
+                    """,
+                    last_error or "no devices reachable", notif_id,
+                )
 
     return notif_id
 

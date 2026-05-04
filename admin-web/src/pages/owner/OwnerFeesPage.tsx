@@ -23,6 +23,7 @@ import {
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   Tabs,
   TextField,
@@ -41,7 +42,7 @@ import DownloadRoundedIcon       from '@mui/icons-material/DownloadRounded';
 import ReceiptLongRoundedIcon    from '@mui/icons-material/ReceiptLongRounded';
 import UndoRoundedIcon           from '@mui/icons-material/UndoRounded';
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOwnerCenter } from '../../contexts/OwnerCenterContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import {
@@ -164,7 +165,7 @@ function CreateFeeDialog({
             value={studentId} onChange={(e) => setStudentId(e.target.value)}
             disabled={studentsQuery.isLoading}
           >
-            {(studentsQuery.data ?? []).map((s) => (
+            {(studentsQuery.data?.items ?? []).map((s) => (
               <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
             ))}
           </TextField>
@@ -1231,6 +1232,8 @@ export default function OwnerFeesPage() {
   const [tab, setTab] = useState<'fees' | 'platform'>('fees');
   const [filters, setFilters] = useState<OwnerFeeFilters>({});
   const [search, setSearch]   = useState('');
+  const [page, setPage]       = useState(0);
+  const PAGE_SIZE = 25;
 
   const [adding, setAdding]               = useState(false);
   const [generating, setGenerating]       = useState(false);
@@ -1248,9 +1251,10 @@ export default function OwnerFeesPage() {
   });
 
   const feesQuery = useQuery({
-    queryKey: ['owner', 'fees', centerId, filters],
-    queryFn: () => listOwnerFees(centerId!, filters),
+    queryKey: ['owner', 'fees', centerId, filters, page],
+    queryFn: () => listOwnerFees(centerId!, filters, page + 1, PAGE_SIZE),
     enabled: !!centerId && tab === 'fees',
+    placeholderData: keepPreviousData,
   });
 
   const invoicesQuery = useQuery({
@@ -1260,7 +1264,7 @@ export default function OwnerFeesPage() {
   });
 
   const filtered = useMemo(() => {
-    const list = feesQuery.data ?? [];
+    const list = feesQuery.data?.items ?? [];
     if (!search.trim()) return list;
     const q = search.toLowerCase();
     return list.filter((f) =>
@@ -1429,7 +1433,7 @@ export default function OwnerFeesPage() {
           onChange={(_, v) => setTab(v)}
           sx={{ px: 2, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 } }}
         >
-          <Tab value="fees"     label={`Student fees (${feesQuery.data?.length ?? 0})`} />
+          <Tab value="fees"     label={`Student fees (${feesQuery.data?.total ?? 0})`} />
           <Tab value="platform" label="Platform invoices" icon={<ReceiptLongRoundedIcon sx={{ fontSize: 16 }} />} iconPosition="start" />
         </Tabs>
       </Card>
@@ -1444,7 +1448,7 @@ export default function OwnerFeesPage() {
                   <TextField
                     size="small" fullWidth
                     placeholder="Search student / batch / course…"
-                    value={search} onChange={(e) => setSearch(e.target.value)}
+                    value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -1458,9 +1462,10 @@ export default function OwnerFeesPage() {
                   <TextField
                     select size="small" fullWidth label="Status"
                     value={filters.status ?? ''}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, status: (e.target.value || undefined) as FeeStatus | undefined }))
-                    }
+                    onChange={(e) => {
+                      setFilters((f) => ({ ...f, status: (e.target.value || undefined) as FeeStatus | undefined }));
+                      setPage(0);
+                    }}
                   >
                     <MenuItem value="">All</MenuItem>
                     <MenuItem value="Pending">Pending</MenuItem>
@@ -1473,7 +1478,7 @@ export default function OwnerFeesPage() {
                   <TextField
                     size="small" fullWidth type="date" label="From"
                     value={filters.start ?? ''}
-                    onChange={(e) => setFilters((f) => ({ ...f, start: e.target.value || undefined }))}
+                    onChange={(e) => { setFilters((f) => ({ ...f, start: e.target.value || undefined })); setPage(0); }}
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
@@ -1481,7 +1486,7 @@ export default function OwnerFeesPage() {
                   <TextField
                     size="small" fullWidth type="date" label="To"
                     value={filters.end ?? ''}
-                    onChange={(e) => setFilters((f) => ({ ...f, end: e.target.value || undefined }))}
+                    onChange={(e) => { setFilters((f) => ({ ...f, end: e.target.value || undefined })); setPage(0); }}
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
@@ -1622,6 +1627,17 @@ export default function OwnerFeesPage() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+              {!feesQuery.isLoading && filtered.length > 0 && (
+                <TablePagination
+                  component="div"
+                  count={feesQuery.data?.total ?? 0}
+                  page={page}
+                  onPageChange={(_, newPage) => setPage(newPage)}
+                  rowsPerPage={PAGE_SIZE}
+                  rowsPerPageOptions={[PAGE_SIZE]}
+                  sx={{ borderTop: `1px solid ${BRAND.divider}` }}
+                />
               )}
             </CardContent>
           </Card>

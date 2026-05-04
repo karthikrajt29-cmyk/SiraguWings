@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.dependencies import CurrentUser, assert_owns_center, require_owner
-from app.schemas.common import SuccessResponse
+from app.schemas.common import PagedResponse, SuccessResponse
 
 # GST split applies only to invoices issued by a center that has a GSTIN.
 DEFAULT_GST_RATE = Decimal("18.0")
@@ -118,9 +118,11 @@ async def list_fees(
     batch_id: Optional[uuid.UUID] = None,
     start: Optional[str] = Query(None, description="due_date >= start (YYYY-MM-DD)"),
     end: Optional[str] = Query(None, description="due_date <= end (YYYY-MM-DD)"),
+    page: int = Query(1, ge=1),
+    size: int = Query(25, ge=1, le=100),
     db: asyncpg.Connection = Depends(get_db),
     owner: CurrentUser = Depends(require_owner),
-) -> list:
+) -> dict:
     assert_owns_center(center_id, owner)
 
     clauses = ["f.center_id = $1", "f.is_deleted = FALSE"]
@@ -154,6 +156,16 @@ async def list_fees(
         clauses.append(f"f.due_date <= ${len(params)}")
 
     where = " AND ".join(f"({c})" for c in clauses)
+    base_from = f"""
+        FROM fee f
+        JOIN student s ON s.id = f.student_id AND s.is_deleted = FALSE
+        LEFT JOIN batch b ON b.id = f.batch_id
+        WHERE {where}
+    """
+    total: int = await db.fetchval(f"SELECT COUNT(*) {base_from}", *params)
+
+    offset_idx = len(params) + 1
+    size_idx   = len(params) + 2
     rows = await db.fetch(
         f"""
         SELECT f.id, f.center_id, f.student_id, f.batch_id, f.amount, f.due_date,
@@ -167,16 +179,14 @@ async def list_fees(
                  SELECT SUM(amount_paid) FROM payment
                  WHERE fee_id = f.id AND status='Success' AND is_deleted=FALSE
                ), 0) AS paid_amount
-        FROM fee f
-        JOIN student s ON s.id = f.student_id AND s.is_deleted = FALSE
-        LEFT JOIN batch b ON b.id = f.batch_id
-        WHERE {where}
+        {base_from}
         ORDER BY f.due_date DESC, s.name
+        LIMIT ${size_idx} OFFSET ${offset_idx}
         """,
-        *params,
+        *params, (page - 1) * size, size,
     )
     today = date_type.today()
-    return [
+    items = [
         {
             "id": str(r["id"]),
             "student_id": str(r["student_id"]),
@@ -198,6 +208,13 @@ async def list_fees(
         }
         for r in rows
     ]
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
+        "total_pages": max(1, (total + size - 1) // size),
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -228,12 +228,13 @@ export default function OwnerReportsPage() {
     staleTime: 60_000,
   });
 
-  const { data: students = [], isLoading: studentsLoading } = useQuery({
-    queryKey: ['owner', 'students', centerId],
-    queryFn: () => listOwnerStudents(centerId!),
+  const { data: studentsData, isLoading: studentsLoading } = useQuery({
+    queryKey: ['owner', 'students', centerId, 'all'],
+    queryFn: () => listOwnerStudents(centerId!, { size: 500 }),
     enabled: !!centerId && tab === 1,
     staleTime: 60_000,
   });
+  const students = studentsData?.items ?? [];
 
   const { data: parents = [], isLoading: parentsLoading } = useQuery({
     queryKey: ['owner', 'parents', centerId],
@@ -258,15 +259,15 @@ export default function OwnerReportsPage() {
 
   // ── CSV helpers ──
   const downloadStudentCsv = async () => {
-    const data = students.length
+    const list = students.length
       ? students
-      : await qc.fetchQuery({ queryKey: ['owner', 'students', centerId], queryFn: () => listOwnerStudents(centerId!) });
+      : (await qc.fetchQuery({ queryKey: ['owner', 'students', centerId, 'all'], queryFn: () => listOwnerStudents(centerId!, { size: 500 }) }))?.items ?? [];
     downloadCsv(
       ['Name', 'Date of birth', 'Gender', 'Parent name', 'Parent mobile', 'Status', 'Enrolled'],
-      data.map((s) => [s.name, s.date_of_birth ?? '', s.gender ?? '', s.parent_name ?? '', s.parent_mobile ?? '', s.status, s.added_at]),
+      list.map((s) => [s.name, s.date_of_birth ?? '', s.gender ?? '', s.parent_name ?? '', s.parent_mobile ?? '', s.status, s.added_at]),
       `students-${centerName}-${todayIso()}`,
     );
-    showSnack(`Exported ${data.length} students`, 'success');
+    showSnack(`Exported ${list.length} students`, 'success');
   };
 
   const downloadParentCsv = async () => {

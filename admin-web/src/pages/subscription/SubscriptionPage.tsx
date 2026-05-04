@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Box, Typography, Card, CardContent, Grid, Chip, Avatar,
-  Table, TableBody, TableCell, TableHead, TableRow, TableContainer,
+  Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TableContainer,
   Paper, TextField, InputAdornment, Drawer, Divider, Button, Stack,
   CircularProgress, Alert, IconButton, LinearProgress,
   Tab, Tabs, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -17,7 +17,7 @@ import UpgradeRoundedIcon from '@mui/icons-material/UpgradeRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import WarningRoundedIcon from '@mui/icons-material/WarningRounded';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   getSubscriptionDashboard, getSubscriptionPlans, getStorageAddOns,
@@ -681,6 +681,8 @@ export default function SubscriptionPage() {
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('All');
   const [selected, setSelected] = useState<OwnerSubscriptionSummary | null>(null);
+  const [page, setPage]         = useState(0);
+  const PAGE_SIZE = 25;
   const navigate = useNavigate();
 
   const { data: dashboard, isLoading: dashLoading } = useQuery({
@@ -690,13 +692,15 @@ export default function SubscriptionPage() {
   });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['subscription-owners', { search, planFilter }],
+    queryKey: ['subscription-owners', { search, planFilter, page }],
     queryFn: () => getOwnerSubscriptions({
       search: search || undefined,
       plan_name: planFilter !== 'All' ? planFilter : undefined,
-      size: 100,
+      page: page + 1,
+      size: PAGE_SIZE,
     }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
   const owners = data?.items ?? [];
@@ -771,7 +775,7 @@ export default function SubscriptionPage() {
           size="small"
           placeholder="Search owner..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           InputProps={{
             startAdornment: <InputAdornment position="start"><SearchRoundedIcon fontSize="small" /></InputAdornment>,
           }}
@@ -786,7 +790,7 @@ export default function SubscriptionPage() {
               clickable
               variant={planFilter === p ? 'filled' : 'outlined'}
               color={planFilter === p ? 'primary' : 'default'}
-              onClick={() => setPlanFilter(p)}
+              onClick={() => { setPlanFilter(p); setPage(0); }}
               sx={{ fontSize: 12 }}
             />
           ))}
@@ -899,6 +903,16 @@ export default function SubscriptionPage() {
               )}
             </TableBody>
           </Table>
+          {!isLoading && (data?.total ?? 0) > PAGE_SIZE && (
+            <TablePagination
+              component="div"
+              count={data?.total ?? 0}
+              page={page}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              rowsPerPage={PAGE_SIZE}
+              rowsPerPageOptions={[PAGE_SIZE]}
+            />
+          )}
         </TableContainer>
       )}
 

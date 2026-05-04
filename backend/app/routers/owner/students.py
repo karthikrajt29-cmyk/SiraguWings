@@ -2,7 +2,7 @@ import uuid
 from typing import Optional  # noqa: F401 — used in type annotations below
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.database import get_db
 from app.dependencies import CurrentUser, assert_owns_center, require_owner
@@ -11,7 +11,7 @@ from app.schemas.center import (
     StudentSummary,
     StudentUpdateRequest,
 )
-from app.schemas.common import SuccessResponse
+from app.schemas.common import PagedResponse, SuccessResponse
 from app.services.center_service import get_center_or_404
 
 router = APIRouter()
@@ -35,17 +35,40 @@ async def _validate_gender(db: asyncpg.Connection, gender: str) -> None:
 # ---------------------------------------------------------------------------
 # LIST students in a center
 # ---------------------------------------------------------------------------
-@router.get("/centers/{center_id}/students", response_model=list[StudentSummary])
+@router.get("/centers/{center_id}/students", response_model=PagedResponse[StudentSummary])
 async def list_students(
     center_id: uuid.UUID,
+    q: Optional[str] = Query(None, description="Search by name, parent name, or mobile"),
+    gender: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    size: int = Query(25, ge=1, le=100),
     db: asyncpg.Connection = Depends(get_db),
     owner: CurrentUser = Depends(require_owner),
-) -> list[StudentSummary]:
+) -> PagedResponse[StudentSummary]:
     assert_owns_center(center_id, owner)
     await get_center_or_404(db, center_id, select="id")
 
+    clauses = ["cs.center_id = $1", "cs.is_deleted = FALSE", "s.is_deleted = FALSE"]
+    params: list = [center_id]
+    if q and q.strip():
+        params.append(f"%{q.strip().lower()}%")
+        n = len(params)
+        clauses.append(f"(LOWER(s.name) LIKE ${n} OR LOWER(p.name) LIKE ${n} OR p.mobile_number LIKE ${n})")
+    if gender:
+        params.append(gender)
+        clauses.append(f"s.gender = ${len(params)}")
+    where = " AND ".join(clauses)
+
+    base_from = f"""
+        FROM center_student cs
+        JOIN student s        ON s.id = cs.student_id
+        LEFT JOIN "user" p    ON p.id = s.parent_id
+        WHERE {where}
+    """
+    total: int = await db.fetchval(f"SELECT COUNT(*) {base_from}", *params)
+
     rows = await db.fetch(
-        """
+        f"""
         SELECT s.id, s.name, s.date_of_birth, s.gender, s.parent_id,
                s.medical_notes, s.profile_image_url,
                s.blood_group, s.current_class, s.school_name,
@@ -53,18 +76,14 @@ async def list_students(
                cs.invite_status, cs.status, cs.added_at,
                p.name          AS parent_name,
                p.mobile_number AS parent_mobile
-        FROM center_student cs
-        JOIN student s        ON s.id = cs.student_id
-        LEFT JOIN "user" p    ON p.id = s.parent_id
-        WHERE cs.center_id = $1
-          AND cs.is_deleted = FALSE
-          AND s.is_deleted  = FALSE
+        {base_from}
         ORDER BY s.name
+        LIMIT ${len(params)+1} OFFSET ${len(params)+2}
         """,
-        center_id,
+        *params, size, (page - 1) * size,
     )
 
-    return [
+    items = [
         StudentSummary(
             id=r["id"], name=r["name"], date_of_birth=r["date_of_birth"],
             gender=r["gender"], parent_id=r["parent_id"],
@@ -78,6 +97,10 @@ async def list_students(
         )
         for r in rows
     ]
+    return PagedResponse(
+        items=items, total=total, page=page, size=size,
+        total_pages=max(1, (total + size - 1) // size),
+    )
 
 
 # ---------------------------------------------------------------------------

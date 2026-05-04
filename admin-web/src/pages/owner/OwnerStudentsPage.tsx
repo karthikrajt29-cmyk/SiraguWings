@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Avatar,
   Box,
@@ -17,11 +17,13 @@ import {
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useDebouncedValue } from '../../hooks/useDebounce';
 import AddRoundedIcon        from '@mui/icons-material/AddRounded';
 import SearchRoundedIcon     from '@mui/icons-material/SearchRounded';
 import DeleteRoundedIcon     from '@mui/icons-material/DeleteRounded';
@@ -31,7 +33,7 @@ import PersonRoundedIcon     from '@mui/icons-material/PersonRounded';
 import SwapHorizRoundedIcon  from '@mui/icons-material/SwapHorizRounded';
 import CameraAltRoundedIcon  from '@mui/icons-material/CameraAltRounded';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOwnerCenter } from '../../contexts/OwnerCenterContext';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -534,9 +536,12 @@ export default function OwnerStudentsPage() {
 
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<string>('');
+  const [page, setPage] = useState(0);
   const [editing, setEditing] = useState<OwnerStudent | null>(null);
   const [adding, setAdding] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<OwnerStudent | null>(null);
+
+  const PAGE_SIZE = 25;
 
   // Auto-open Add dialog when navigated with ?add=1 (e.g. from sidebar shortcut)
   useEffect(() => {
@@ -548,25 +553,22 @@ export default function OwnerStudentsPage() {
 
   const centerName = centers.find((c) => c.id === centerId)?.name ?? '';
 
-  const { data: students = [], isLoading } = useQuery({
-    queryKey: ['owner', 'students', centerId],
-    queryFn: () => listOwnerStudents(centerId!),
+  const debouncedSearch = useDebouncedValue(search, 300);
+
+  const { data: studentsData, isLoading } = useQuery({
+    queryKey: ['owner', 'students', centerId, debouncedSearch, genderFilter, page],
+    queryFn: () => listOwnerStudents(centerId!, {
+      q: debouncedSearch || undefined,
+      gender: genderFilter || undefined,
+      page: page + 1,
+      size: PAGE_SIZE,
+    }),
     enabled: !!centerId,
+    placeholderData: keepPreviousData,
   });
 
-  const filtered = useMemo(() => {
-    let out = students;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      out = out.filter((s) =>
-        s.name.toLowerCase().includes(q) ||
-        (s.parent_name ?? '').toLowerCase().includes(q) ||
-        (s.parent_mobile ?? '').includes(q),
-      );
-    }
-    if (genderFilter) out = out.filter((s) => s.gender === genderFilter);
-    return out;
-  }, [students, search, genderFilter]);
+  const filtered = studentsData?.items ?? [];
+  const totalStudents = studentsData?.total ?? 0;
 
   const createMut = useMutation({
     mutationFn: (payload: OwnerStudentCreatePayload) => createOwnerStudent(centerId!, payload),
@@ -620,7 +622,7 @@ export default function OwnerStudentsPage() {
             Students
           </Typography>
           <Typography sx={{ fontSize: 13.5, color: BRAND.textSecondary, mt: 0.5 }}>
-            {centerName} &middot; {students.length} enrolled
+            {centerName} &middot; {totalStudents} enrolled
           </Typography>
         </Box>
         <Button
@@ -640,7 +642,7 @@ export default function OwnerStudentsPage() {
               size="small"
               placeholder="Search by name, parent, or mobile…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               sx={{ flex: 1, minWidth: 280 }}
               InputProps={{
                 startAdornment: (
@@ -654,7 +656,7 @@ export default function OwnerStudentsPage() {
               select
               size="small"
               value={genderFilter}
-              onChange={(e) => setGenderFilter(e.target.value)}
+              onChange={(e) => { setGenderFilter(e.target.value); setPage(0); }}
               label="Gender"
               sx={{ minWidth: 140 }}
             >
@@ -683,9 +685,9 @@ export default function OwnerStudentsPage() {
                 <SchoolRoundedIcon sx={{ fontSize: 28 }} />
               </Avatar>
               <Typography sx={{ fontSize: 14, fontWeight: 600, color: BRAND.textPrimary }}>
-                {students.length === 0 ? 'No students enrolled yet' : 'No students match your filters'}
+                {totalStudents === 0 ? 'No students enrolled yet' : 'No students match your filters'}
               </Typography>
-              {students.length === 0 && (
+              {totalStudents === 0 && (
                 <Typography sx={{ fontSize: 12, color: BRAND.textSecondary, mt: 0.5 }}>
                   Click "Add Student" to enroll your first student.
                 </Typography>
@@ -765,6 +767,17 @@ export default function OwnerStudentsPage() {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {!isLoading && filtered.length > 0 && (
+            <TablePagination
+              component="div"
+              count={totalStudents}
+              page={page}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              rowsPerPage={PAGE_SIZE}
+              rowsPerPageOptions={[PAGE_SIZE]}
+              sx={{ borderTop: `1px solid ${BRAND.divider}` }}
+            />
           )}
         </CardContent>
       </Card>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Box, Typography, Card, CardContent, Grid, Chip, Avatar, Button,
-  Table, TableBody, TableCell, TableHead, TableRow, TableContainer,
+  Table, TableBody, TableCell, TableHead, TablePagination, TableRow, TableContainer,
   Paper, TextField, InputAdornment, Drawer, List, ListItem, ListItemText,
   Divider, Stack, CircularProgress, Alert, IconButton,
 } from '@mui/material';
@@ -14,7 +14,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import CakeRoundedIcon from '@mui/icons-material/CakeRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   getUsers, getUserDetail, getUserStudents,
   type UserSummary, type ParentStudent,
@@ -272,11 +272,14 @@ function ParentDrawer({
 export default function ParentManagementPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<UserSummary | null>(null);
+  const [page, setPage]         = useState(0);
+  const PAGE_SIZE = 25;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['users', { role: 'Parent', search }],
-    queryFn: () => getUsers({ role: 'Parent', search: search || undefined, size: 100 }),
+    queryKey: ['users', { role: 'Parent', search, page }],
+    queryFn: () => getUsers({ role: 'Parent', search: search || undefined, page: page + 1, size: PAGE_SIZE }),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
   const parents = data?.items ?? [];
@@ -355,7 +358,7 @@ export default function ParentManagementPage() {
           size="small"
           placeholder="Search by name, email or mobile..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -436,6 +439,16 @@ export default function ParentManagementPage() {
               )}
             </TableBody>
           </Table>
+          {!isLoading && (data?.total ?? 0) > PAGE_SIZE && (
+            <TablePagination
+              component="div"
+              count={data?.total ?? 0}
+              page={page}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              rowsPerPage={PAGE_SIZE}
+              rowsPerPageOptions={[PAGE_SIZE]}
+            />
+          )}
         </TableContainer>
       )}
 
