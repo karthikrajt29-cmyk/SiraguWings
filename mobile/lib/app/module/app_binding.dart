@@ -11,8 +11,14 @@ import '../service/api/api_client.dart';
 class AppBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<ApiClient>(() => ApiClient(), fenix: true);
-    Get.lazyPut<AuthController>(() => AuthController(), fenix: true);
+    // permanent=true → never deleted when routes are removed, preventing
+    // the infinite loop where each new route re-creates these singletons.
+    if (!Get.isRegistered<ApiClient>()) {
+      Get.put<ApiClient>(ApiClient(), permanent: true);
+    }
+    if (!Get.isRegistered<AuthController>()) {
+      Get.put<AuthController>(AuthController(), permanent: true);
+    }
     Get.lazyPut<DashboardController>(() => DashboardController(), fenix: true);
     Get.lazyPut<NotificationController>(() => NotificationController(), fenix: true);
     Get.lazyPut<SosController>(() => SosController(), fenix: true);

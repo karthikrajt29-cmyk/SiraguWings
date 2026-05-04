@@ -30,7 +30,11 @@ class AuthController extends GetxController {
     if (user == null) {
       profile.value = null;
       currentRole.value = '';
-      Get.offAllNamed(AppRoutes.login);
+      // Guard: don't push /login if already there — prevents infinite loop
+      // when AppBinding re-creates this controller on each route change.
+      if (Get.currentRoute != AppRoutes.login) {
+        Get.offAllNamed(AppRoutes.login);
+      }
       return;
     }
     await _loadProfile();

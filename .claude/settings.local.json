@@ -82,7 +82,13 @@
       "Bash(python -c \"from app.main import app; print\\('OK', sum\\(1 for _ in app.routes\\), 'routes'\\)\")",
       "Bash(python3 -c \"from app.main import app; print\\('OK', sum\\(1 for _ in app.routes\\), 'routes'\\)\")",
       "Bash(flutter create *)",
-      "Bash(xargs sed *)"
+      "Bash(xargs sed *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('project_id:', d.get\\('project_id'\\)\\)\")",
+      "Bash(flutterfire configure *)",
+      "Bash(firebase projects:list)",
+      "Bash(firebase login:list)",
+      "Bash(firebase login:add)",
+      "Bash(GOOGLE_APPLICATION_CREDENTIALS=/Users/karthikraj.than/Documents/Personal/SiraguWings/backend/firebase-credentials.json flutterfire configure --project=siraguwings-8321f --platforms=android,ios --android-package-name=com.siragutech.siraguwings_mobile --ios-bundle-id=com.siragutech.siraguwingsMobile --yes)"
     ],
     "additionalDirectories": [
       "/Users/karthikraj.than/StudioProjects/siraguwings_mobile"

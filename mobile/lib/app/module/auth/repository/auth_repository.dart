@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart' hide Response;
 
 import '../../../service/api/api_client.dart';
@@ -8,7 +9,10 @@ class AuthRepository {
   final Dio _dio = Get.find<ApiClient>().dio;
 
   Future<UserProfile> fetchProfile() async {
-    final res = await _dio.post('/auth/token');
+    final idToken = await FirebaseAuth.instance.currentUser!.getIdToken();
+    final res = await _dio.post('/auth/token', data: {
+      'firebase_id_token': idToken,
+    });
     return UserProfile.fromJson(res.data as Map<String, dynamic>);
   }
 

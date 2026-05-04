@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "539707324641",
+    "project_id": "siraguwings-8321f",
+    "storage_bucket": "siraguwings-8321f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:539707324641:android:d2b3e9c4f5ec1e03501fa0",
+        "android_client_info": {
+          "package_name": "com.siragutech.siraguwings_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEINHIOdfcGJGFf2G6oQen6m9dykwHzwE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
