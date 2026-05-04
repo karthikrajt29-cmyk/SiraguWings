@@ -65,7 +65,27 @@
       "Read(//Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/**)",
       "Bash(./venv/bin/python apply_013.py)",
       "Bash(./venv/bin/python -m py_compile app/routers/admin/subscription.py app/schemas/subscription.py)",
-      "Bash(./venv/bin/python -m py_compile app/routers/admin/subscription.py app/routers/admin/billing.py app/schemas/subscription.py)"
+      "Bash(./venv/bin/python -m py_compile app/routers/admin/subscription.py app/routers/admin/billing.py app/schemas/subscription.py)",
+      "Bash(npm run *)",
+      "Bash(echo \"Frontend PID: $!\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(lsof -ti:5173)",
+      "Bash(lsof -ti:8000)",
+      "Bash(lsof -i:5173)",
+      "Bash(lsof -i:8000)",
+      "Bash(sed -i '' 's/import { useMutation, useQuery, useQueryClient } from '\\\\''@tanstack\\\\/react-query'\\\\'';/import { keepPreviousData, useMutation, useQuery, useQueryClient } from '\\\\''@tanstack\\\\/react-query'\\\\'';/g' /Users/karthikraj.than/Documents/Personal/SiraguWings/admin-web/src/pages/owner/OwnerStudentsPage.tsx /Users/karthikraj.than/Documents/Personal/SiraguWings/admin-web/src/pages/owner/OwnerFeesPage.tsx)",
+      "Bash(sed -i '' 's/import { useQuery } from '\\\\''@tanstack\\\\/react-query'\\\\'';/import { keepPreviousData, useQuery } from '\\\\''@tanstack\\\\/react-query'\\\\'';/g' /Users/karthikraj.than/Documents/Personal/SiraguWings/admin-web/src/pages/parents/ParentManagementPage.tsx)",
+      "Bash(sed -i '' 's/import { useQuery, useMutation, useQueryClient } from '\\\\''@tanstack\\\\/react-query'\\\\'';/import { keepPreviousData, useQuery, useMutation, useQueryClient } from '\\\\''@tanstack\\\\/react-query'\\\\'';/g' /Users/karthikraj.than/Documents/Personal/SiraguWings/admin-web/src/pages/owners/OwnerManagementPage.tsx /Users/karthikraj.than/Documents/Personal/SiraguWings/admin-web/src/pages/subscription/SubscriptionPage.tsx)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(python -c \"from app.main import app; print\\('OK', sum\\(1 for _ in app.routes\\), 'routes'\\)\")",
+      "Bash(python3 -c \"from app.main import app; print\\('OK', sum\\(1 for _ in app.routes\\), 'routes'\\)\")",
+      "Bash(flutter create *)",
+      "Bash(xargs sed *)"
+    ],
+    "additionalDirectories": [
+      "/Users/karthikraj.than/StudioProjects/siraguwings_mobile"
     ]
   }
 }
