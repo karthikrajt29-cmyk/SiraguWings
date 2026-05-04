@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: siraguwings-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # set manually in Render dashboard
+
+      - key: FIREBASE_CREDENTIALS_PATH
+        value: /etc/secrets/firebase-credentials.json
+
+      - key: ENVIRONMENT
+        value: production
+
+      - key: ALLOWED_ORIGINS
+        sync: false          # set to your frontend URL in Render dashboard
+
+    secretFiles:
+      - name: firebase-credentials.json
+        mountPath: /etc/secrets/firebase-credentials.json
