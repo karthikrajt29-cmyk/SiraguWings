@@ -3,8 +3,8 @@ services:
     name: siraguwings-backend
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
 
     envVars:
@@ -12,7 +12,7 @@ services:
         sync: false          # set manually in Render dashboard
 
       - key: FIREBASE_CREDENTIALS_PATH
-        value: /etc/secrets/firebase-credentials.json
+        value: /etc/secrets/firebase-credentials.json   # absolute path — works from any working dir
 
       - key: ENVIRONMENT
         value: production
