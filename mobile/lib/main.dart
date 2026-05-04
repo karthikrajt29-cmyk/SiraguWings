@@ -24,6 +24,7 @@ void main() async {
 class SiraguWingsApp extends StatelessWidget {
   const SiraguWingsApp({super.key});
 
+
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(

@@ -88,7 +88,8 @@
       "Bash(firebase projects:list)",
       "Bash(firebase login:list)",
       "Bash(firebase login:add)",
-      "Bash(GOOGLE_APPLICATION_CREDENTIALS=/Users/karthikraj.than/Documents/Personal/SiraguWings/backend/firebase-credentials.json flutterfire configure --project=siraguwings-8321f --platforms=android,ios --android-package-name=com.siragutech.siraguwings_mobile --ios-bundle-id=com.siragutech.siraguwingsMobile --yes)"
+      "Bash(GOOGLE_APPLICATION_CREDENTIALS=/Users/karthikraj.than/Documents/Personal/SiraguWings/backend/firebase-credentials.json flutterfire configure --project=siraguwings-8321f --platforms=android,ios --android-package-name=com.siragutech.siraguwings_mobile --ios-bundle-id=com.siragutech.siraguwingsMobile --yes)",
+      "Bash(./venv/bin/python -c \"from app.main import app; print\\('OK', sum\\(1 for _ in app.routes\\), 'routes'\\)\")"
     ],
     "additionalDirectories": [
       "/Users/karthikraj.than/StudioProjects/siraguwings_mobile"

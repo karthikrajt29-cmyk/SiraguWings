@@ -1,11 +1,12 @@
 from fastapi import APIRouter
 
 from app.routers.owner import (
-    attendance, batches, centers, fees, notifications, parents, students, teachers,
+    attendance, batches, centers, dashboard, fees, notifications, parents, students, teachers,
 )
 
 router = APIRouter()
 
+router.include_router(dashboard.router,     tags=["Owner — Dashboard"])
 router.include_router(centers.router,       tags=["Owner — Centers"])
 router.include_router(teachers.router,      tags=["Owner — Teachers"])
 router.include_router(students.router,      tags=["Owner — Students"])
