@@ -1,0 +1,15 @@
+{
+  "user_id": "parent_001",
+  "name": "Suresh Krishnan",
+  "email": "parent@siraguings.com",
+  "mobile_number": "+91 99001 55566",
+  "profile_image_url": null,
+  "roles": [
+    {
+      "role": "Parent",
+      "center_id": null,
+      "center_name": null,
+      "is_active": true
+    }
+  ]
+}

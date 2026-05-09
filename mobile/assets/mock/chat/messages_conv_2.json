@@ -1,0 +1,29 @@
+[
+  {
+    "id": "msg_1",
+    "sender_id": "par_2",
+    "sender_name": "Meena Rajan",
+    "content": "Hi sir, how is Arjun doing in class?",
+    "sent_at": "2026-05-08T15:00:00",
+    "is_read": true,
+    "type": "text"
+  },
+  {
+    "id": "msg_2",
+    "sender_id": "tch_1",
+    "sender_name": "Ramesh Pillai",
+    "content": "Hello Meena! Arjun is progressing well. He needs more practice on his stances but his spirit is excellent.",
+    "sent_at": "2026-05-08T15:30:00",
+    "is_read": true,
+    "type": "text"
+  },
+  {
+    "id": "msg_3",
+    "sender_id": "par_2",
+    "sender_name": "Meena Rajan",
+    "content": "Is Arjun showing improvement in sparring?",
+    "sent_at": "2026-05-08T16:45:00",
+    "is_read": true,
+    "type": "text"
+  }
+]

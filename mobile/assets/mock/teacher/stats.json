@@ -1,0 +1,12 @@
+{
+  "total_students": 8,
+  "total_batches": 2,
+  "today_classes": 1,
+  "attendance_this_week_pct": 89,
+  "classes_this_month": 12,
+  "next_class": {
+    "batch_name": "Beginners Karate",
+    "start_time": "16:30",
+    "class_days": "Mon, Wed, Fri"
+  }
+}

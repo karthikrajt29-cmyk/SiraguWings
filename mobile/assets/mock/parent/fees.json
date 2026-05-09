@@ -1,0 +1,58 @@
+[
+  {
+    "id": "fee_9",
+    "student_id": "stu_9",
+    "student_name": "Aditya Krishnan",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "batch_id": "batch_1",
+    "batch_name": "Beginners Karate",
+    "amount": 1500,
+    "due_date": "2026-04-10",
+    "status": "Overdue",
+    "paid_on": null,
+    "billing_period": "Apr 2026"
+  },
+  {
+    "id": "fee_par_2",
+    "student_id": "stu_9",
+    "student_name": "Aditya Krishnan",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "batch_id": "batch_1",
+    "batch_name": "Beginners Karate",
+    "amount": 1500,
+    "due_date": "2026-05-10",
+    "status": "Pending",
+    "paid_on": null,
+    "billing_period": "May 2026"
+  },
+  {
+    "id": "fee_par_3",
+    "student_id": "stu_9",
+    "student_name": "Aditya Krishnan",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "batch_id": "batch_1",
+    "batch_name": "Beginners Karate",
+    "amount": 1500,
+    "due_date": "2026-03-10",
+    "status": "Paid",
+    "paid_on": "2026-03-04",
+    "billing_period": "Mar 2026"
+  },
+  {
+    "id": "fee_par_4",
+    "student_id": "stu_9",
+    "student_name": "Aditya Krishnan",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "batch_id": "batch_1",
+    "batch_name": "Beginners Karate",
+    "amount": 1500,
+    "due_date": "2026-02-10",
+    "status": "Paid",
+    "paid_on": "2026-02-08",
+    "billing_period": "Feb 2026"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "mat_1",
+    "title": "Karate Beginners – Week 1 Notes",
+    "description": "Introduction to basic stances and kicks",
+    "batch_id": "batch_1",
+    "batch_name": "Karate Beginners",
+    "type": "pdf",
+    "file_name": "karate_week1_notes.pdf",
+    "uploaded_by": "Ramesh Pillai",
+    "uploaded_at": "2026-05-05T10:00:00",
+    "due_date": null
+  },
+  {
+    "id": "mat_2",
+    "title": "Kata Practice Guide",
+    "description": "Step-by-step guide for Heian Shodan kata",
+    "batch_id": "batch_1",
+    "batch_name": "Karate Beginners",
+    "type": "pdf",
+    "file_name": "kata_guide.pdf",
+    "uploaded_by": "Ramesh Pillai",
+    "uploaded_at": "2026-05-07T14:30:00",
+    "due_date": null
+  },
+  {
+    "id": "mat_3",
+    "title": "Belt Grading Assignment",
+    "description": "Practice exercises to be submitted before grading on 25 May",
+    "batch_id": "batch_1",
+    "batch_name": "Karate Beginners",
+    "type": "assignment",
+    "file_name": "grading_assignment.pdf",
+    "uploaded_by": "Ramesh Pillai",
+    "uploaded_at": "2026-05-08T09:00:00",
+    "due_date": "2026-05-24"
+  },
+  {
+    "id": "mat_4",
+    "title": "Sparring Safety Rules",
+    "description": "Official rules and safety guidelines for sparring sessions",
+    "batch_id": "batch_2",
+    "batch_name": "Karate Advanced",
+    "type": "note",
+    "file_name": "sparring_rules.pdf",
+    "uploaded_by": "Ramesh Pillai",
+    "uploaded_at": "2026-05-06T11:00:00",
+    "due_date": null
+  },
+  {
+    "id": "mat_5",
+    "title": "Advanced Kata – Bassai Dai",
+    "description": "Reference notes and video timestamps for Bassai Dai kata",
+    "batch_id": "batch_2",
+    "batch_name": "Karate Advanced",
+    "type": "note",
+    "file_name": "bassai_dai_notes.pdf",
+    "uploaded_by": "Ramesh Pillai",
+    "uploaded_at": "2026-05-04T16:00:00",
+    "due_date": null
+  },
+  {
+    "id": "mat_6",
+    "title": "Monthly Assessment – May",
+    "description": "Complete the kata drills and submit your self-assessment form",
+    "batch_id": "batch_2",
+    "batch_name": "Karate Advanced",
+    "type": "assignment",
+    "file_name": "may_assessment.pdf",
+    "uploaded_by": "Ramesh Pillai",
+    "uploaded_at": "2026-05-09T08:00:00",
+    "due_date": "2026-05-31"
+  }
+]

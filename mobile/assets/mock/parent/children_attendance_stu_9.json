@@ -1,0 +1,14 @@
+[
+  {"attendance_date": "2026-05-04", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"},
+  {"attendance_date": "2026-05-02", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"},
+  {"attendance_date": "2026-04-30", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Absent"},
+  {"attendance_date": "2026-04-28", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"},
+  {"attendance_date": "2026-04-26", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"},
+  {"attendance_date": "2026-04-23", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"},
+  {"attendance_date": "2026-04-21", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Late"},
+  {"attendance_date": "2026-04-19", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"},
+  {"attendance_date": "2026-04-16", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"},
+  {"attendance_date": "2026-04-14", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Absent"},
+  {"attendance_date": "2026-04-12", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"},
+  {"attendance_date": "2026-04-09", "batch_name": "Beginners Karate", "course_name": "Karate",        "status": "Present"}
+]

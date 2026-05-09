@@ -1,0 +1,30 @@
+{
+  "batch_id": "batch_2",
+  "batch_name": "Advanced Karate",
+  "items": [
+    {
+      "student_id": "stu_3",
+      "name": "Rohan Iyer",
+      "profile_image_url": "https://i.pravatar.cc/150?img=12",
+      "status": null
+    },
+    {
+      "student_id": "stu_4",
+      "name": "Meera Nair",
+      "profile_image_url": "https://i.pravatar.cc/150?img=48",
+      "status": null
+    },
+    {
+      "student_id": "stu_7",
+      "name": "Kabir Menon",
+      "profile_image_url": "https://i.pravatar.cc/150?img=14",
+      "status": null
+    },
+    {
+      "student_id": "stu_12",
+      "name": "Arjun Venkat",
+      "profile_image_url": "https://i.pravatar.cc/150?img=17",
+      "status": null
+    }
+  ]
+}

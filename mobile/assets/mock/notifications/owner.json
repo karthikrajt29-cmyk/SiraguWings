@@ -1,0 +1,7 @@
+[
+  {"id": "ntf_o_1", "center_name": "SiraguWings Velachery", "type": "Push", "category": "Fee", "title": "Fee overdue: Rohan Iyer", "body": "Apr 2026 invoice (₹2,000) is past due date.", "read_at": null,                       "created_date": "2026-05-04T09:15:00.000Z"},
+  {"id": "ntf_o_2", "center_name": "SiraguWings Velachery", "type": "InApp","category": "Attendance","title": "Attendance recorded","body": "Beginners Karate — 4/4 students present today.", "read_at": "2026-05-04T17:30:00.000Z","created_date": "2026-05-04T17:00:00.000Z"},
+  {"id": "ntf_o_3", "center_name": "SiraguWings Anna Nagar","type": "Push", "category": "Enrolment","title": "New enrolment", "body": "Dev Verma joined Beginners Karate batch.","read_at": null,                          "created_date": "2026-05-03T11:20:00.000Z"},
+  {"id": "ntf_o_4", "center_name": "SiraguWings Velachery", "type": "InApp","category": "Fee", "title": "Payment received", "body": "Diya Sharma paid ₹1,500 for May 2026.","read_at": "2026-05-02T18:00:00.000Z",      "created_date": "2026-05-02T14:32:00.000Z"},
+  {"id": "ntf_o_5", "center_name": "SiraguWings Anna Nagar","type": "Push", "category": "System","title": "Monthly report ready","body": "April 2026 reports are now available.","read_at": null,                       "created_date": "2026-05-01T08:00:00.000Z"}
+]

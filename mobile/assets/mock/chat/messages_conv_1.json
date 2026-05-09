@@ -1,0 +1,56 @@
+[
+  {
+    "id": "msg_1",
+    "sender_id": "tch_1",
+    "sender_name": "Ramesh Pillai",
+    "content": "Hello Suresh, I wanted to discuss Priya's progress in our Karate Beginners batch.",
+    "sent_at": "2026-05-09T09:15:00",
+    "is_read": true,
+    "type": "text"
+  },
+  {
+    "id": "msg_2",
+    "sender_id": "par_1",
+    "sender_name": "Suresh Krishnan",
+    "content": "Good morning! Yes, please go ahead.",
+    "sent_at": "2026-05-09T09:20:00",
+    "is_read": true,
+    "type": "text"
+  },
+  {
+    "id": "msg_3",
+    "sender_id": "tch_1",
+    "sender_name": "Ramesh Pillai",
+    "content": "Priya has been doing great! Her attendance is 95% and she cleared the first belt exam with full marks.",
+    "sent_at": "2026-05-09T09:22:00",
+    "is_read": true,
+    "type": "text"
+  },
+  {
+    "id": "msg_4",
+    "sender_id": "par_1",
+    "sender_name": "Suresh Krishnan",
+    "content": "Wonderful! We are so proud of her. When is the next grading?",
+    "sent_at": "2026-05-09T09:30:00",
+    "is_read": true,
+    "type": "text"
+  },
+  {
+    "id": "msg_5",
+    "sender_id": "tch_1",
+    "sender_name": "Ramesh Pillai",
+    "content": "Next grading is on 25th May at 10 AM. Please make sure she attends the preparation classes this week.",
+    "sent_at": "2026-05-09T10:00:00",
+    "is_read": true,
+    "type": "text"
+  },
+  {
+    "id": "msg_6",
+    "sender_id": "par_1",
+    "sender_name": "Suresh Krishnan",
+    "content": "Thank you! We'll be there.",
+    "sent_at": "2026-05-09T10:30:00",
+    "is_read": false,
+    "type": "text"
+  }
+]

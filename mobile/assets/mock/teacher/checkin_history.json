@@ -1,0 +1,52 @@
+[
+  {
+    "id": "chk_1",
+    "date": "2026-05-08",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "check_in_time": "16:22",
+    "latitude": 12.9716,
+    "longitude": 80.2209,
+    "status": "Present"
+  },
+  {
+    "id": "chk_2",
+    "date": "2026-05-07",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "check_in_time": "16:18",
+    "latitude": 12.9716,
+    "longitude": 80.2209,
+    "status": "Present"
+  },
+  {
+    "id": "chk_3",
+    "date": "2026-05-06",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "check_in_time": "16:31",
+    "latitude": 12.9716,
+    "longitude": 80.2209,
+    "status": "Present"
+  },
+  {
+    "id": "chk_4",
+    "date": "2026-05-05",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "check_in_time": null,
+    "latitude": null,
+    "longitude": null,
+    "status": "Absent"
+  },
+  {
+    "id": "chk_5",
+    "date": "2026-05-02",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "check_in_time": "16:25",
+    "latitude": 12.9716,
+    "longitude": 80.2209,
+    "status": "Present"
+  }
+]

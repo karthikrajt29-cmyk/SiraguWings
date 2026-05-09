@@ -1,0 +1,22 @@
+{
+  "owner_test@siraguings.com": {
+    "password": "Owner@1234",
+    "profile_file": "auth/profile_owner_parent.json"
+  },
+  "admin@siraguings.com": {
+    "password": "Admin@1234",
+    "profile_file": "auth/profile_owner_parent.json"
+  },
+  "parent@siraguings.com": {
+    "password": "Parent@1234",
+    "profile_file": "auth/profile_parent.json"
+  },
+  "teacher@siraguings.com": {
+    "password": "Teacher@1234",
+    "profile_file": "auth/profile_teacher.json"
+  },
+  "ramesh.p@siraguings.com": {
+    "password": "Teacher@1234",
+    "profile_file": "auth/profile_teacher.json"
+  }
+}

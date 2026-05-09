@@ -1,0 +1,42 @@
+[
+  {
+    "id": "ann_1",
+    "title": "Belt Grading on 25th May",
+    "body": "Dear Parents, the next belt grading ceremony is scheduled for 25th May at 10 AM. All students must attend the preparation classes this week. Please ensure your child brings the required uniform and equipment.",
+    "target_role": "Parent",
+    "target_batch": "All",
+    "created_at": "2026-05-08T09:00:00",
+    "sent_to": 8,
+    "sender_name": "Ramesh Pillai"
+  },
+  {
+    "id": "ann_2",
+    "title": "Class Rescheduled – 10th May",
+    "body": "Please note that Friday's class (10th May) has been moved to Saturday 11th May at the same time. Apologies for the inconvenience.",
+    "target_role": "Parent",
+    "target_batch": "Karate Beginners",
+    "created_at": "2026-05-07T16:00:00",
+    "sent_to": 4,
+    "sender_name": "Ramesh Pillai"
+  },
+  {
+    "id": "ann_3",
+    "title": "Fee Reminder – May",
+    "body": "This is a gentle reminder that May fees are due by 15th May. Please complete the payment through the app or at the center.",
+    "target_role": "Parent",
+    "target_batch": "All",
+    "created_at": "2026-05-05T10:00:00",
+    "sent_to": 8,
+    "sender_name": "Ramesh Pillai"
+  },
+  {
+    "id": "ann_4",
+    "title": "New Batch Starting – Karate Junior",
+    "body": "We are happy to announce a new Junior Karate batch starting 1st June for students aged 6–10. Limited seats available. Contact the center for registration.",
+    "target_role": "Parent",
+    "target_batch": "All",
+    "created_at": "2026-05-03T12:00:00",
+    "sent_to": 8,
+    "sender_name": "Ramesh Pillai"
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "user_id": "user_owner_test",
+  "name": "Karthik Rajan",
+  "email": "owner_test@siraguings.com",
+  "mobile_number": "+91 98765 43210",
+  "profile_image_url": null,
+  "roles": [
+    {
+      "role": "Owner",
+      "center_id": "center_a",
+      "center_name": "SiraguWings Velachery",
+      "is_active": true
+    },
+    {
+      "role": "Owner",
+      "center_id": "center_b",
+      "center_name": "SiraguWings Anna Nagar",
+      "is_active": true
+    },
+    {
+      "role": "Parent",
+      "center_id": null,
+      "center_name": null,
+      "is_active": true
+    }
+  ]
+}

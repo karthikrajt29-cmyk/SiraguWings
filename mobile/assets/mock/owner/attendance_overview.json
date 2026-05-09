@@ -1,0 +1,15 @@
+[
+  {"date": "2026-05-04", "batch_id": "batch_1", "batch_name": "Beginners Karate", "center_id": "center_a", "present_count": 4, "absent_count": 0, "total_students": 4},
+  {"date": "2026-05-04", "batch_id": "batch_2", "batch_name": "Advanced Karate",  "center_id": "center_a", "present_count": 3, "absent_count": 1, "total_students": 4},
+  {"date": "2026-05-04", "batch_id": "batch_3", "batch_name": "Bharatanatyam",    "center_id": "center_a", "present_count": 4, "absent_count": 0, "total_students": 4},
+  {"date": "2026-05-03", "batch_id": "batch_1", "batch_name": "Beginners Karate", "center_id": "center_a", "present_count": 4, "absent_count": 0, "total_students": 4},
+  {"date": "2026-05-03", "batch_id": "batch_2", "batch_name": "Advanced Karate",  "center_id": "center_a", "present_count": 4, "absent_count": 0, "total_students": 4},
+  {"date": "2026-05-03", "batch_id": "batch_3", "batch_name": "Bharatanatyam",    "center_id": "center_a", "present_count": 3, "absent_count": 1, "total_students": 4},
+  {"date": "2026-05-02", "batch_id": "batch_1", "batch_name": "Beginners Karate", "center_id": "center_a", "present_count": 3, "absent_count": 1, "total_students": 4},
+  {"date": "2026-05-02", "batch_id": "batch_2", "batch_name": "Advanced Karate",  "center_id": "center_a", "present_count": 4, "absent_count": 0, "total_students": 4},
+  {"date": "2026-05-04", "batch_id": "batch_4", "batch_name": "Beginners Karate", "center_id": "center_b", "present_count": 3, "absent_count": 0, "total_students": 3},
+  {"date": "2026-05-04", "batch_id": "batch_5", "batch_name": "Yoga & Wellness",  "center_id": "center_b", "present_count": 2, "absent_count": 1, "total_students": 3},
+  {"date": "2026-05-04", "batch_id": "batch_6", "batch_name": "Carnatic Vocals",  "center_id": "center_b", "present_count": 2, "absent_count": 0, "total_students": 2},
+  {"date": "2026-05-03", "batch_id": "batch_4", "batch_name": "Beginners Karate", "center_id": "center_b", "present_count": 3, "absent_count": 0, "total_students": 3},
+  {"date": "2026-05-03", "batch_id": "batch_5", "batch_name": "Yoga & Wellness",  "center_id": "center_b", "present_count": 3, "absent_count": 0, "total_students": 3}
+]

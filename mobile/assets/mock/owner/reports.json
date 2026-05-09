@@ -1,0 +1,33 @@
+{
+  "summary": {
+    "total_revenue_this_month": 31500,
+    "total_revenue_last_month": 27800,
+    "outstanding_dues": 27500,
+    "active_students": 18,
+    "average_attendance_pct": 87.4
+  },
+  "revenue_by_month": [
+    {"month": "Dec 2025", "amount": 22500},
+    {"month": "Jan 2026", "amount": 25800},
+    {"month": "Feb 2026", "amount": 24300},
+    {"month": "Mar 2026", "amount": 26100},
+    {"month": "Apr 2026", "amount": 27800},
+    {"month": "May 2026", "amount": 31500}
+  ],
+  "attendance_by_batch": [
+    {"batch_id": "batch_1", "batch_name": "Beginners Karate (Velachery)", "attendance_pct": 92.5},
+    {"batch_id": "batch_2", "batch_name": "Advanced Karate (Velachery)",  "attendance_pct": 88.0},
+    {"batch_id": "batch_3", "batch_name": "Bharatanatyam (Velachery)",    "attendance_pct": 85.6},
+    {"batch_id": "batch_4", "batch_name": "Beginners Karate (Anna Nagar)","attendance_pct": 90.1},
+    {"batch_id": "batch_5", "batch_name": "Yoga & Wellness (Anna Nagar)", "attendance_pct": 82.3},
+    {"batch_id": "batch_6", "batch_name": "Carnatic Vocals (Anna Nagar)", "attendance_pct": 86.0}
+  ],
+  "enrolment_trend": [
+    {"month": "Dec 2025", "count": 14},
+    {"month": "Jan 2026", "count": 15},
+    {"month": "Feb 2026", "count": 16},
+    {"month": "Mar 2026", "count": 17},
+    {"month": "Apr 2026", "count": 18},
+    {"month": "May 2026", "count": 20}
+  ]
+}

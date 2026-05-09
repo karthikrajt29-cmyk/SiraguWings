@@ -36,6 +36,9 @@ dependencies:
   # Push notifications
   flutter_local_notifications: ^18.0.0
 
+  # QR code scanner
+  mobile_scanner: ^7.0.0
+
   # UI helpers
   cached_network_image: ^3.4.1
   pinput: ^5.0.1
@@ -51,3 +54,12 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/mock/auth/
+    - assets/mock/owner/
+    - assets/mock/parent/
+    - assets/mock/teacher/
+    - assets/mock/notifications/
+    - assets/mock/sos/
+    - assets/mock/chat/
+    - assets/mock/materials/
+    - assets/mock/announcements/

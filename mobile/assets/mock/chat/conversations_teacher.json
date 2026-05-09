@@ -1,0 +1,35 @@
+[
+  {
+    "id": "conv_1",
+    "participant_id": "par_1",
+    "participant_name": "Suresh Krishnan",
+    "participant_role": "Parent",
+    "participant_avatar": null,
+    "last_message": "Thank you! We'll be there.",
+    "last_message_at": "2026-05-09T10:30:00",
+    "unread_count": 2,
+    "child_name": "Priya Suresh"
+  },
+  {
+    "id": "conv_2",
+    "participant_id": "par_2",
+    "participant_name": "Meena Rajan",
+    "participant_role": "Parent",
+    "participant_avatar": null,
+    "last_message": "Is Arjun showing improvement in sparring?",
+    "last_message_at": "2026-05-08T16:45:00",
+    "unread_count": 0,
+    "child_name": "Arjun Rajan"
+  },
+  {
+    "id": "conv_3",
+    "participant_id": "par_3",
+    "participant_name": "Kavya Nair",
+    "participant_role": "Parent",
+    "participant_avatar": null,
+    "last_message": "When is the next fee due?",
+    "last_message_at": "2026-05-07T11:00:00",
+    "unread_count": 1,
+    "child_name": "Dev Nair"
+  }
+]

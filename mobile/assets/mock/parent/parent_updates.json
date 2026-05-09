@@ -1,0 +1,47 @@
+[
+  {
+    "id": "upd_1",
+    "type": "homework",
+    "title": "Kata Practice – Tiger Form",
+    "subtitle": "Practice the Tiger kata 10 times daily",
+    "due_date": "2026-05-12",
+    "priority": "high",
+    "batch": "Beginners Karate"
+  },
+  {
+    "id": "upd_2",
+    "type": "exam",
+    "title": "Belt Grading Test",
+    "subtitle": "Yellow belt → Orange belt assessment",
+    "due_date": "2026-05-16",
+    "priority": "high",
+    "batch": "Beginners Karate"
+  },
+  {
+    "id": "upd_3",
+    "type": "announcement",
+    "title": "Center Closed – Public Holiday",
+    "subtitle": "No classes on Monday 12th May (Buddha Pournami)",
+    "due_date": "2026-05-12",
+    "priority": "normal",
+    "batch": "All Batches"
+  },
+  {
+    "id": "upd_4",
+    "type": "material",
+    "title": "Training Video Uploaded",
+    "subtitle": "Watch: Basic blocking techniques (15 min)",
+    "due_date": null,
+    "priority": "normal",
+    "batch": "Beginners Karate"
+  },
+  {
+    "id": "upd_5",
+    "type": "fee",
+    "title": "Fee Due Reminder",
+    "subtitle": "May 2026 fee of ₹2,500 due by 31st May",
+    "due_date": "2026-05-31",
+    "priority": "normal",
+    "batch": null
+  }
+]

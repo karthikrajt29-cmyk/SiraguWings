@@ -1,0 +1,6 @@
+[
+  {"id": "ntf_p_1", "center_name": "SiraguWings Velachery", "type": "Push", "category": "Fee", "title": "Fee due reminder", "body": "Aditya's May 2026 fee (₹1,500) is due on May 10.", "read_at": null, "created_date": "2026-05-04T08:00:00.000Z"},
+  {"id": "ntf_p_2", "center_name": "SiraguWings Velachery", "type": "InApp","category": "Attendance","title": "Marked Present","body": "Aditya marked Present in Beginners Karate today.","read_at": "2026-05-04T19:00:00.000Z","created_date": "2026-05-04T17:30:00.000Z"},
+  {"id": "ntf_p_3", "center_name": "SiraguWings Velachery", "type": "Push", "category": "Activity", "title": "New class photo", "body": "Coach Ramesh shared photos from today's class.","read_at": null, "created_date": "2026-05-03T18:30:00.000Z"},
+  {"id": "ntf_p_4", "center_name": "SiraguWings Velachery", "type": "Push", "category": "Fee", "title": "Payment received", "body": "Mar 2026 fee receipt available.", "read_at": "2026-03-04T15:00:00.000Z", "created_date": "2026-03-04T12:00:00.000Z"}
+]

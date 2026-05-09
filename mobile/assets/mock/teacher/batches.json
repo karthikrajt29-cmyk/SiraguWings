@@ -1,0 +1,32 @@
+[
+  {
+    "id": "batch_1",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "course_name": "Karate",
+    "batch_name": "Beginners Karate",
+    "category_type": "Sports",
+    "class_days": "Mon, Wed, Fri",
+    "start_time": "16:30",
+    "end_time": "17:30",
+    "student_count": 4,
+    "monthly_fee": 1500,
+    "attendance_this_week": 92,
+    "is_active": true
+  },
+  {
+    "id": "batch_2",
+    "center_id": "center_a",
+    "center_name": "SiraguWings Velachery",
+    "course_name": "Karate",
+    "batch_name": "Advanced Karate",
+    "category_type": "Sports",
+    "class_days": "Tue, Thu, Sat",
+    "start_time": "17:30",
+    "end_time": "18:45",
+    "student_count": 4,
+    "monthly_fee": 2000,
+    "attendance_this_week": 87,
+    "is_active": true
+  }
+]

@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'app/config/app_flags.dart';
 import 'app/config/routes/app_pages.dart';
 import 'app/config/themes/app_theme.dart';
 import 'app/module/app_binding.dart';
@@ -15,14 +16,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  if (!AppFlags.useMockData) {
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
   runApp(const SiraguWingsApp());
 }
 
 
 class SiraguWingsApp extends StatelessWidget {
   const SiraguWingsApp({super.key});
+
+
+
+
 
 
   @override

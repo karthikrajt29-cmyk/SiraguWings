@@ -1,0 +1,13 @@
+[
+  {
+    "id": "conv_1",
+    "participant_id": "tch_1",
+    "participant_name": "Ramesh Pillai",
+    "participant_role": "Teacher",
+    "participant_avatar": null,
+    "last_message": "Thank you! We'll be there.",
+    "last_message_at": "2026-05-09T10:30:00",
+    "unread_count": 0,
+    "child_name": "Priya Suresh"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "center_a",
+    "name": "SiraguWings Velachery",
+    "address": "12, 100 Feet Road, Velachery, Chennai 600042",
+    "city": "Chennai",
+    "phone": "+91 44 2255 1100",
+    "logo_url": null,
+    "student_count": 12,
+    "batch_count": 3,
+    "is_active": true
+  },
+  {
+    "id": "center_b",
+    "name": "SiraguWings Anna Nagar",
+    "address": "44, 2nd Avenue, Anna Nagar West, Chennai 600040",
+    "city": "Chennai",
+    "phone": "+91 44 2615 4400",
+    "logo_url": null,
+    "student_count": 8,
+    "batch_count": 3,
+    "is_active": true
+  }
+]

@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import '../../../config/routes/app_routes.dart';
 import '../../../config/themes/app_theme.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../auth/model/user_profile.dart';
 import '../controller/dashboard_controller.dart';
+
 
 class OwnerHomeTab extends StatelessWidget {
   const OwnerHomeTab({super.key});
@@ -14,51 +16,61 @@ class OwnerHomeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = Get.find<AuthController>();
     final ctrl = Get.find<DashboardController>();
-    final profile = auth.profile.value;
-    final centerName = auth.profile.value?.roles
-        .where((r) => r.centerId == auth.currentCenterId.value)
-        .firstOrNull
-        ?.centerName;
+
+    // All Owner role entries (one per center).
+    final ownerRoles = auth.profile.value?.roles
+            .where((r) => r.role == 'Owner' && r.centerId != null)
+            .toList() ??
+        [];
 
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: ctrl.loadOwnerStats,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _GreetingHeader(
-            name: profile?.name ?? '',
-            centerName: centerName,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(child: _GreetingHeader(auth: auth)),
+          SliverToBoxAdapter(
+            child: _CenterSelector(
+              ownerRoles: ownerRoles,
+              ctrl: ctrl,
+              auth: auth,
+            ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-            child: Obx(() => _StatsSection(
-                  loading: ctrl.statsLoading.value,
-                  stats: ctrl.stats.value,
-                )),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Obx(() => _StatsSection(
+                    loading: ctrl.statsLoading.value,
+                    stats: ctrl.stats.value,
+                  )),
+            ),
           ),
-          const SizedBox(height: 24),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _QuickActionsSection(),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: _QuickActionsSection(),
+            ),
           ),
-          const SizedBox(height: 24),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _MenuSection(),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: _ManagementMenu(),
+            ),
           ),
-          const SizedBox(height: 32),
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
         ],
       ),
     );
   }
 }
 
-class _GreetingHeader extends StatelessWidget {
-  const _GreetingHeader({required this.name, this.centerName});
+// ── Greeting header ──────────────────────────────────────────────────────────
 
-  final String name;
-  final String? centerName;
+class _GreetingHeader extends StatelessWidget {
+  const _GreetingHeader({required this.auth});
+  final AuthController auth;
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -71,62 +83,330 @@ class _GreetingHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       decoration: const BoxDecoration(
         color: AppColors.navy,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(0)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            '$_greeting,',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _greeting,
+                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
+                Obx(() => Text(
+                      auth.profile.value?.name ?? 'Owner',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('EEEE, d MMM yyyy').format(DateTime.now()),
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            name.isNotEmpty ? name : 'Owner',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white24),
             ),
-          ),
-          if (centerName != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.business_rounded,
-                      color: Colors.white70, size: 13),
-                  const SizedBox(width: 5),
-                  Text(
-                    centerName!,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ],
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.business_center_rounded,
+                    color: Colors.white70, size: 13),
+                const SizedBox(width: 5),
+                const Text(
+                  'Owner',
+                  style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
+              ],
             ),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            DateFormat('EEEE, d MMM yyyy').format(DateTime.now()),
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ],
       ),
     );
   }
 }
+
+// ── Center selector ──────────────────────────────────────────────────────────
+
+class _CenterSelector extends StatelessWidget {
+  const _CenterSelector({
+    required this.ownerRoles,
+    required this.ctrl,
+    required this.auth,
+  });
+
+  final List<RoleEntry> ownerRoles;
+  final DashboardController ctrl;
+  final AuthController auth;
+
+  @override
+  Widget build(BuildContext context) {
+    if (ownerRoles.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      color: AppColors.navy,
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                const Text(
+                  'MY CENTERS',
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Get.toNamed(AppRoutes.ownerCenterSwitcher),
+                  child: const Text(
+                    'Details',
+                    style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 88,
+            child: Obx(() {
+              final view = ctrl.viewCenterId.value;
+              return ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  // Overall card (always first)
+                  _OverallCard(
+                    selected: view == kAllCenters,
+                    centerCount: ownerRoles.length,
+                    onTap: () {
+                      if (view != kAllCenters) ctrl.showOverall();
+                    },
+                  ),
+                  const SizedBox(width: 10),
+                  // Individual center cards
+                  ...ownerRoles.map((entry) {
+                    final selected = view == entry.centerId;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: _CenterCard(
+                        entry: entry,
+                        selected: selected,
+                        onTap: () {
+                          if (!selected) ctrl.switchCenter(entry.centerId!);
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverallCard extends StatelessWidget {
+  const _OverallCard({
+    required this.selected,
+    required this.centerCount,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final int centerCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: 130,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.white
+              : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? Colors.white : Colors.white.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.dashboard_rounded,
+                  size: 14,
+                  color: selected ? AppColors.navy : Colors.white60,
+                ),
+                const Spacer(),
+                if (selected)
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Overall',
+                  style: TextStyle(
+                    color: selected ? AppColors.navy : Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  '$centerCount centers',
+                  style: TextStyle(
+                    color: selected ? AppColors.textSecondary : Colors.white38,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CenterCard extends StatelessWidget {
+  const _CenterCard({
+    required this.entry,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final RoleEntry entry;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    // Shorten name: "SiraguWings Velachery" → "Velachery"
+    final shortName = (entry.centerName ?? 'Center')
+        .replaceAll('SiraguWings', '')
+        .trim();
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: 150,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary
+              : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? AppColors.primary
+                : Colors.white.withValues(alpha: 0.15),
+            width: selected ? 0 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.store_rounded,
+                  size: 14,
+                  color: selected ? Colors.white : Colors.white60,
+                ),
+                const Spacer(),
+                if (selected)
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  shortName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? Colors.white : Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  selected ? 'Active' : 'Tap to switch',
+                  style: TextStyle(
+                    color: selected
+                        ? Colors.white70
+                        : Colors.white38,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Stats section ────────────────────────────────────────────────────────────
 
 class _StatsSection extends StatelessWidget {
   const _StatsSection({required this.loading, required this.stats});
@@ -150,7 +430,7 @@ class _StatsSection extends StatelessWidget {
         if (loading)
           const Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
+              padding: EdgeInsets.symmetric(vertical: 28),
               child: CircularProgressIndicator(color: AppColors.primary),
             ),
           )
@@ -161,7 +441,7 @@ class _StatsSection extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.6,
+            childAspectRatio: 1.65,
             children: [
               _StatCard(
                 label: 'Students',
@@ -169,6 +449,7 @@ class _StatsSection extends StatelessWidget {
                 icon: Icons.people_rounded,
                 iconColor: AppColors.primary,
                 iconBg: AppColors.primary.withValues(alpha: 0.1),
+                onTap: () => Get.toNamed(AppRoutes.ownerStudents),
               ),
               _StatCard(
                 label: 'Batches',
@@ -176,6 +457,7 @@ class _StatsSection extends StatelessWidget {
                 icon: Icons.class_rounded,
                 iconColor: AppColors.accent,
                 iconBg: AppColors.accent.withValues(alpha: 0.1),
+                onTap: () => Get.toNamed(AppRoutes.ownerBatches),
               ),
               _StatCard(
                 label: 'Pending Fees',
@@ -183,6 +465,7 @@ class _StatsSection extends StatelessWidget {
                 icon: Icons.pending_actions_rounded,
                 iconColor: AppColors.pending,
                 iconBg: AppColors.pending.withValues(alpha: 0.1),
+                onTap: () => Get.toNamed(AppRoutes.ownerFees),
               ),
               _StatCard(
                 label: 'Overdue',
@@ -192,6 +475,7 @@ class _StatsSection extends StatelessWidget {
                 icon: Icons.warning_amber_rounded,
                 iconColor: AppColors.rejected,
                 iconBg: AppColors.rejected.withValues(alpha: 0.1),
+                onTap: () => Get.toNamed(AppRoutes.ownerFees),
               ),
             ],
           ),
@@ -207,6 +491,7 @@ class _StatCard extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.iconBg,
+    this.onTap,
   });
 
   final String label;
@@ -214,55 +499,64 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final Color iconBg;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            if (onTap != null)
+              const Icon(Icons.chevron_right,
+                  size: 16, color: AppColors.border),
+          ],
+        ),
       ),
     );
   }
 }
+
+// ── Quick actions ────────────────────────────────────────────────────────────
 
 class _QuickActionsSection extends StatelessWidget {
   const _QuickActionsSection();
@@ -272,12 +566,12 @@ class _QuickActionsSection extends StatelessWidget {
     final actions = [
       _Action('Add Student', Icons.person_add_rounded, AppColors.primary,
           AppRoutes.ownerStudents),
-      _Action('Mark Fees', Icons.receipt_long_rounded, AppColors.approved,
+      _Action('Fees', Icons.receipt_long_rounded, AppColors.approved,
           AppRoutes.ownerFees),
-      _Action('Batches', Icons.class_rounded, AppColors.accent,
-          AppRoutes.ownerBatches),
+      _Action('Attendance', Icons.fact_check_rounded, AppColors.accent,
+          AppRoutes.ownerAttendance),
       _Action('Reports', Icons.bar_chart_rounded, AppColors.navy,
-          AppRoutes.ownerStudents),
+          AppRoutes.ownerReports),
     ];
 
     return Column(
@@ -350,33 +644,29 @@ class _ActionChip extends StatelessWidget {
   }
 }
 
-class _MenuSection extends StatelessWidget {
-  const _MenuSection();
+// ── Management menu ──────────────────────────────────────────────────────────
+
+class _ManagementMenu extends StatelessWidget {
+  const _ManagementMenu();
 
   @override
   Widget build(BuildContext context) {
     final items = [
-      _MenuItem(
-        Icons.people_rounded,
-        'Students',
-        'Manage enrolled students',
-        AppColors.primary,
-        AppRoutes.ownerStudents,
-      ),
-      _MenuItem(
-        Icons.class_rounded,
-        'Batches',
-        'View and manage batches',
-        AppColors.accent,
-        AppRoutes.ownerBatches,
-      ),
-      _MenuItem(
-        Icons.receipt_long_rounded,
-        'Fee Management',
-        'Track payments & dues',
-        AppColors.approved,
-        AppRoutes.ownerFees,
-      ),
+      _MenuItem(Icons.people_rounded, 'Students', 'Manage enrolled students',
+          AppColors.primary, AppRoutes.ownerStudents),
+      _MenuItem(Icons.class_rounded, 'Batches', 'View and manage batches',
+          AppColors.accent, AppRoutes.ownerBatches),
+      _MenuItem(Icons.receipt_long_rounded, 'Fee Management',
+          'Track payments & dues', AppColors.approved, AppRoutes.ownerFees),
+      _MenuItem(Icons.person_rounded, 'Staff', 'Teachers and instructors',
+          AppColors.navy, AppRoutes.ownerStaff),
+      _MenuItem(Icons.family_restroom_rounded, 'Parents',
+          'Parent contacts & kids', AppColors.pending, AppRoutes.ownerParents),
+      _MenuItem(Icons.bar_chart_rounded, 'Reports', 'Revenue & attendance',
+          AppColors.rejected, AppRoutes.ownerReports),
+      _MenuItem(Icons.fact_check_rounded, 'Attendance',
+          'Daily attendance overview', AppColors.accent,
+          AppRoutes.ownerAttendance),
     ];
 
     return Column(
@@ -404,7 +694,7 @@ class _MenuSection extends StatelessWidget {
                   ListTile(
                     onTap: () => Get.toNamed(item.route),
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                     leading: Container(
                       padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
@@ -435,7 +725,8 @@ class _MenuSection extends StatelessWidget {
 }
 
 class _MenuItem {
-  const _MenuItem(this.icon, this.title, this.subtitle, this.color, this.route);
+  const _MenuItem(
+      this.icon, this.title, this.subtitle, this.color, this.route);
   final IconData icon;
   final String title;
   final String subtitle;

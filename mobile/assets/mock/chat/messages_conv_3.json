@@ -1,0 +1,11 @@
+[
+  {
+    "id": "msg_1",
+    "sender_id": "par_3",
+    "sender_name": "Kavya Nair",
+    "content": "Hello, when is the next fee due?",
+    "sent_at": "2026-05-07T11:00:00",
+    "is_read": false,
+    "type": "text"
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "stu_9",
+    "name": "Aditya Krishnan",
+    "profile_image_url": "https://i.pravatar.cc/150?img=15",
+    "date_of_birth": "2017-06-25",
+    "gender": "Male",
+    "centers": [
+      {
+        "center_id": "center_a",
+        "center_name": "SiraguWings Velachery",
+        "status": "Active"
+      }
+    ]
+  }
+]

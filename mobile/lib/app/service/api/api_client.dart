@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart' hide Response;
 
+import '../../config/app_flags.dart';
 import '../../constants/api_constants.dart';
+import 'mock_interceptor.dart';
 
 class ApiClient extends GetxService {
   late final Dio _dio;
@@ -19,13 +21,17 @@ class ApiClient extends GetxService {
         headers: {'Content-Type': 'application/json'},
       ),
     );
-    _dio.interceptors.add(_AuthInterceptor(_dio));
-    if (kDebugMode) {
-      _dio.interceptors.add(LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (o) => debugPrint(o.toString()),
-      ));
+    if (AppFlags.useMockData) {
+      _dio.interceptors.add(MockInterceptor());
+    } else {
+      _dio.interceptors.add(_AuthInterceptor(_dio));
+      if (kDebugMode) {
+        _dio.interceptors.add(LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          logPrint: (o) => debugPrint(o.toString()),
+        ));
+      }
     }
   }
 

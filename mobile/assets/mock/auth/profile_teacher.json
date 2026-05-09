@@ -1,0 +1,15 @@
+{
+  "user_id": "tch_1",
+  "name": "Ramesh Pillai",
+  "email": "ramesh.p@siraguings.com",
+  "mobile_number": "+91 98841 11100",
+  "profile_image_url": "https://i.pravatar.cc/150?img=51",
+  "roles": [
+    {
+      "role": "Teacher",
+      "center_id": "center_a",
+      "center_name": "SiraguWings Velachery",
+      "is_active": true
+    }
+  ]
+}

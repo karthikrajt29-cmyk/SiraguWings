@@ -5,7 +5,12 @@ import 'dashboard/controller/dashboard_controller.dart';
 import 'notification/controller/notification_controller.dart';
 import 'sos/controller/sos_controller.dart';
 import 'teacher/batches/controller/teacher_batch_controller.dart';
+import 'teacher/checkin/controller/checkin_controller.dart';
 import 'parent/children/controller/children_controller.dart';
+import 'parent/nearby/controller/nearby_controller.dart';
+import 'chat/controller/chat_controller.dart';
+import 'materials/controller/material_controller.dart';
+import 'announcements/controller/announcement_controller.dart';
 import '../service/api/api_client.dart';
 
 class AppBinding extends Bindings {
@@ -23,6 +28,11 @@ class AppBinding extends Bindings {
     Get.lazyPut<NotificationController>(() => NotificationController(), fenix: true);
     Get.lazyPut<SosController>(() => SosController(), fenix: true);
     Get.lazyPut<TeacherBatchController>(() => TeacherBatchController(), fenix: true);
+    Get.lazyPut<CheckInController>(() => CheckInController(), fenix: true);
     Get.lazyPut<ChildrenController>(() => ChildrenController(), fenix: true);
+    Get.lazyPut<NearbyController>(() => NearbyController(), fenix: true);
+    Get.lazyPut<ChatController>(() => ChatController(), fenix: true);
+    Get.lazyPut<MaterialController>(() => MaterialController(), fenix: true);
+    Get.lazyPut<AnnouncementController>(() => AnnouncementController(), fenix: true);
   }
 }

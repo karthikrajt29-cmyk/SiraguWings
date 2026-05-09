@@ -1,0 +1,44 @@
+[
+  {
+    "id": "center_a",
+    "name": "SiraguWings Velachery",
+    "address": "42, 100 Feet Road, Velachery, Chennai - 600042",
+    "phone": "+91 98765 43210",
+    "rating": 4.8,
+    "review_count": 124,
+    "distance_km": 1.2,
+    "open_time": "06:00 AM",
+    "close_time": "09:00 PM",
+    "courses": ["Karate", "Chess", "Yoga"],
+    "photo_url": "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=400",
+    "is_enrolled": true
+  },
+  {
+    "id": "center_b",
+    "name": "SiraguWings Adyar",
+    "address": "15, LB Road, Adyar, Chennai - 600020",
+    "phone": "+91 98765 43211",
+    "rating": 4.6,
+    "review_count": 89,
+    "distance_km": 3.5,
+    "open_time": "06:30 AM",
+    "close_time": "08:30 PM",
+    "courses": ["Karate", "Taekwondo", "Swimming"],
+    "photo_url": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400",
+    "is_enrolled": false
+  },
+  {
+    "id": "center_c",
+    "name": "SiraguWings OMR",
+    "address": "88, Perungudi Main Rd, OMR, Chennai - 600096",
+    "phone": "+91 98765 43212",
+    "rating": 4.7,
+    "review_count": 67,
+    "distance_km": 5.8,
+    "open_time": "07:00 AM",
+    "close_time": "09:00 PM",
+    "courses": ["Karate", "Abacus", "Drawing"],
+    "photo_url": "https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b?w=400",
+    "is_enrolled": false
+  }
+]

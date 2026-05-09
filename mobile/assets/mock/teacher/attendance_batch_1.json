@@ -1,0 +1,30 @@
+{
+  "batch_id": "batch_1",
+  "batch_name": "Beginners Karate",
+  "items": [
+    {
+      "student_id": "stu_1",
+      "name": "Aarav Kumar",
+      "profile_image_url": "https://i.pravatar.cc/150?img=11",
+      "status": null
+    },
+    {
+      "student_id": "stu_2",
+      "name": "Diya Sharma",
+      "profile_image_url": "https://i.pravatar.cc/150?img=47",
+      "status": null
+    },
+    {
+      "student_id": "stu_8",
+      "name": "Saanvi Reddy",
+      "profile_image_url": "https://i.pravatar.cc/150?img=44",
+      "status": null
+    },
+    {
+      "student_id": "stu_9",
+      "name": "Aditya Krishnan",
+      "profile_image_url": "https://i.pravatar.cc/150?img=15",
+      "status": null
+    }
+  ]
+}
