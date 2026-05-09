@@ -29,12 +29,12 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.navy,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 48),
+              const SizedBox(height: 40),
               const Icon(Icons.school, size: 56, color: AppColors.primary),
               const SizedBox(height: 16),
               const Text(
@@ -115,6 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : const Text('Sign In'),
                   )),
+              const SizedBox(height: 24),
             ],
           ),
         ),

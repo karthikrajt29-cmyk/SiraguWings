@@ -89,7 +89,14 @@
       "Bash(firebase login:list)",
       "Bash(firebase login:add)",
       "Bash(GOOGLE_APPLICATION_CREDENTIALS=/Users/karthikraj.than/Documents/Personal/SiraguWings/backend/firebase-credentials.json flutterfire configure --project=siraguwings-8321f --platforms=android,ios --android-package-name=com.siragutech.siraguwings_mobile --ios-bundle-id=com.siragutech.siraguwingsMobile --yes)",
-      "Bash(./venv/bin/python -c \"from app.main import app; print\\('OK', sum\\(1 for _ in app.routes\\), 'routes'\\)\")"
+      "Bash(./venv/bin/python -c \"from app.main import app; print\\('OK', sum\\(1 for _ in app.routes\\), 'routes'\\)\")",
+      "Bash(dart analyze *)",
+      "Bash(git -C /Users/karthikraj.than/Documents/Personal/SiraguWings/mobile status)",
+      "Bash(git -C /Users/karthikraj.than/Documents/Personal/SiraguWings/mobile diff --stat)",
+      "Bash(git -C /Users/karthikraj.than/Documents/Personal/SiraguWings/mobile log --oneline -5)",
+      "Bash(git -C /Users/karthikraj.than/Documents/Personal/SiraguWings/mobile add lib/app/config/routes/app_pages.dart lib/app/config/routes/app_routes.dart lib/app/module/app_binding.dart lib/app/module/auth/controller/auth_controller.dart lib/app/module/auth/ui/splash_screen.dart lib/app/module/dashboard/controller/dashboard_controller.dart lib/app/module/dashboard/ui/dashboard_screen.dart lib/app/module/dashboard/ui/owner_home_tab.dart lib/app/module/dashboard/ui/parent_home_tab.dart lib/app/module/dashboard/ui/teacher_home_tab.dart lib/app/module/teacher/batches/controller/teacher_batch_controller.dart lib/app/module/teacher/batches/model/teacher_batch_model.dart lib/app/module/teacher/batches/repository/teacher_batch_repository.dart lib/app/module/teacher/batches/ui/attendance_screen.dart lib/app/module/teacher/batches/ui/teacher_batches_screen.dart lib/app/service/api/api_client.dart lib/main.dart pubspec.yaml pubspec.lock lib/app/config/app_flags.dart lib/app/module/announcements/ lib/app/module/auth/service/ lib/app/module/auth/ui/demo_selection_screen.dart lib/app/module/chat/ lib/app/module/materials/ lib/app/module/owner/ lib/app/module/parent/chatbot/ lib/app/module/parent/fees/ lib/app/module/parent/nearby/ lib/app/module/teacher/checkin/ lib/app/service/api/mock_interceptor.dart assets/mock/)",
+      "Bash(git -C /Users/karthikraj.than/Documents/Personal/SiraguWings/mobile status --short)",
+      "Bash(git -C /Users/karthikraj.than/Documents/Personal/SiraguWings/mobile commit -m ' *)"
     ],
     "additionalDirectories": [
       "/Users/karthikraj.than/StudioProjects/siraguwings_mobile"
